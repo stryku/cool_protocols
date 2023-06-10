@@ -1,23 +1,14 @@
-#include "cool_protocols/cool_protocols.hpp"
-#include "fmt/core.h"
+#include "cool_protocols/ip.hpp"
 
 #include <gtest/gtest.h>
 
-#include <array>
-#include <atomic>
-#include <limits>
-#include <mutex>
-#include <random>
-#include <string>
-#include <string_view>
-
-namespace cool_protocols::test {
+namespace cool_protocols::ip::test {
 
 using namespace std::literals;
 
 TEST(CoolProtocolsTest, Foo) {
 
-  EXPECT_EQ(cool_protocols::foo(), 42);
+  EXPECT_EQ(sizeof(internet_header), 60);
 }
 
-} // namespace cool_protocols::test
+} // namespace cool_protocols::ip::test

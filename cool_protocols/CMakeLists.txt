@@ -1,5 +1,5 @@
 add_library(cool_protocols STATIC
-  cool_protocols.hpp cool_protocols.cpp
+  ip.hpp ip.cpp
 )
 
 target_include_directories(cool_protocols INTERFACE ..)
