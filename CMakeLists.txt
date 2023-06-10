@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 
 project(cool_protocols)
 
+add_compile_options(-stdlib=libc++)
+add_link_options(-stdlib=libc++ -lc++abi)
+
 include(FetchContent)
 
 FetchContent_Declare(
@@ -24,7 +27,7 @@ FetchContent_Declare(
   GIT_TAG v1.7.1)
 FetchContent_MakeAvailable(googlebenchmark)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 add_compile_options(-Wall -Wextra -pedantic -Werror -Wno-invalid-offsetof)
 
 option(COOL_PROTOCOLS_SANITIZE "Do sanitize?" OFF)
