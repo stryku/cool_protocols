@@ -110,3 +110,23 @@ struct fmt::formatter<cool_protocols::ip::option::option_type>
                      (cool_protocols::ip::option::number)ot.m_number);
   }
 };
+
+template <>
+struct fmt::formatter<cool_protocols::ip::option_reading_error>
+    : cool_protocols::detail::no_parse {
+
+  constexpr auto format(const cool_protocols::ip::option_reading_error err,
+                        auto &ctx) {
+
+    switch (err) {
+      case cool_protocols::ip::option_reading_error::no_more_data:
+        return format_to(ctx.out(), "no_more_data");
+      case cool_protocols::ip::option_reading_error::no_enough_data:
+        return format_to(ctx.out(), "no_enough_data");
+      case cool_protocols::ip::option_reading_error::malformed_security_length:
+        return format_to(ctx.out(), "malformed_security_length");
+      default:
+        return format_to(ctx.out(), "?");
+    }
+  }
+};

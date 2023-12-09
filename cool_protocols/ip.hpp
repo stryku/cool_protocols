@@ -210,7 +210,11 @@ struct read_lose_source_routing_option {
   std::span<const std::uint8_t> m_data{};
 };
 
-enum class option_reading_error { no_more_data, no_enough_data };
+enum class option_reading_error {
+  no_more_data,
+  no_enough_data,
+  malformed_security_length
+};
 
 class options_reader {
 public:
@@ -248,8 +252,26 @@ public:
 
       const std::uint8_t length = eat();
 
-      if (length != option::k_security_length) {
-        // TODO handle
+      if (length != option::k_security_length) [[unlikely]] {
+
+        if (length < 2) {
+          // Can't eat more. Just return.
+          return std::unexpected{
+              option_reading_error::malformed_security_length};
+        }
+
+        // Omit option type and length.
+        const std::uint8_t data_length = length - 2;
+
+        if (!can_eat(data_length)) {
+          return clear_and_error(
+              option_reading_error::malformed_security_length);
+        }
+
+        // Don't clear. Can try to omit the `length` bytes and read the next
+        // option
+        eat(data_length);
+        return std::unexpected{option_reading_error::malformed_security_length};
       }
 
       read_option read{option::k_security};
