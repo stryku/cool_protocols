@@ -484,9 +484,14 @@ TEST_F(IpTest, OptionsReader_SecurityMalformedLength_TooSmall) {
   }
 }
 
-TEST_F(IpTest, OptionsReader_SecurityMalformedLength_TooBig_NoEnoughData) {
+TEST_F(IpTest, OptionsReader_SecurityMalformedLength_NoEnoughData) {
 
-  for (std::uint8_t length = 3 * 4 + 1; length < 5 * 4 + 1; ++length) {
+  for (std::uint8_t length = 5; length < 5 * 4 + 1; ++length) {
+
+    if (length == option::k_security_length) {
+      // Omit valid length
+      continue;
+    }
 
     test_print(fmt::format("length={}", length));
 
@@ -496,7 +501,7 @@ TEST_F(IpTest, OptionsReader_SecurityMalformedLength_TooBig_NoEnoughData) {
     header.m_options[0] = option::k_security.to_uint8();
     header.m_options[1] = length;
 
-    header.m_version_and_length.m_internet_header_length += 3;
+    header.m_version_and_length.m_internet_header_length += 1;
 
     write_header(header);
 

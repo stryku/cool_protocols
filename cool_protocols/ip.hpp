@@ -285,8 +285,7 @@ public:
 
 private:
   std::expected<read_option, option_reading_error> try_read_security() {
-    //-1 because option type already eaten.
-    if (!can_eat(option::k_security_length - 1)) {
+    if (!can_eat()) {
       // Can't eat length
       return clear_and_error(option_reading_error::no_enough_data);
     }
@@ -311,6 +310,11 @@ private:
       // option
       eat(data_length);
       return std::unexpected{option_reading_error::malformed_security_length};
+    }
+
+    //-2 because option type and length already eaten.
+    if (!can_eat(length - 2)) {
+      return clear_and_error(option_reading_error::no_enough_data);
     }
 
     read_option read{option::k_security};
