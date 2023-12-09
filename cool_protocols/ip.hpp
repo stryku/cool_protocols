@@ -7,6 +7,7 @@
 #include <cstring>
 #include <expected>
 #include <span>
+#include <stdexcept>
 
 namespace cool_protocols::ip {
 
@@ -39,12 +40,12 @@ struct option_type {
   }
 
   constexpr option_type(copied copied_, classes class_, number number_)
-      : m_copied{(std::uint8_t)copied_}, m_class{(std::uint8_t)class_},
-        m_number{(std::uint8_t)number_} {}
+      : m_number{(std::uint8_t)number_}, m_class{(std::uint8_t)class_},
+        m_copied{(std::uint8_t)copied_} {}
 
-  std::uint8_t m_copied : 1 = 0;
-  std::uint8_t m_class : 2 = 0;
   std::uint8_t m_number : 5 = 0;
+  std::uint8_t m_class : 2 = 0;
+  std::uint8_t m_copied : 1 = 0;
 
   constexpr bool operator==(const option_type &) const = default;
 
@@ -55,6 +56,20 @@ struct option_type {
 } __attribute__((packed));
 
 static_assert(sizeof(option_type) == 1);
+
+namespace detail {
+
+inline constexpr bool can_memcpy_option_type() {
+  option_type type;
+  type.m_copied = 1;
+  type.m_class = 1;
+  type.m_number = 8;
+
+  const std::uint8_t expected = 0b10101000;
+  return std::bit_cast<std::uint8_t>(type) == expected;
+};
+
+} // namespace detail
 
 constexpr option_type k_end_of_list{};
 constexpr option_type k_no_operation{copied::not_copied, classes::control,
@@ -169,8 +184,13 @@ read_internet_header(std::span<const std::byte> buffer) {
   }
 
   internet_header header;
-  std::memcpy(&header, buffer.data(),
-              version_and_length.m_internet_header_length * 4);
+  if (option::detail::can_memcpy_option_type()) {
+    std::memcpy(&header, buffer.data(),
+                version_and_length.m_internet_header_length * 4);
+  } else {
+    // TODO implement
+    throw std::runtime_error("Not implemented");
+  }
 
   return header;
 }
