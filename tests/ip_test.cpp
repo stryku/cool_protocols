@@ -297,8 +297,9 @@ TEST_F(IpTest, OptionsReader_CantEatLength) {
 
   header.m_version_and_length.m_internet_header_length += 1;
 
-  const std::array options_to_test{option::k_security,
-                                   option::k_loose_source_routing};
+  const std::array options_to_test{
+      option::k_security, option::k_loose_source_routing,
+      option::k_strict_source_routing, option::k_record_route};
 
   for (const auto &to_test : options_to_test) {
 
