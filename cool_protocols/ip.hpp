@@ -243,41 +243,7 @@ public:
     }
 
     if (type == option::k_security) {
-
-      //-1 because option type already eaten.
-      if (!can_eat(option::k_security_length - 1)) {
-        // Can't eat length
-        return clear_and_error(option_reading_error::no_enough_data);
-      }
-
-      const std::uint8_t length = eat();
-
-      if (length != option::k_security_length) [[unlikely]] {
-
-        if (length < 2) {
-          // Can't eat more. Just return.
-          return std::unexpected{
-              option_reading_error::malformed_security_length};
-        }
-
-        // Omit option type and length.
-        const std::uint8_t data_length = length - 2;
-
-        if (!can_eat(data_length)) {
-          return clear_and_error(
-              option_reading_error::malformed_security_length);
-        }
-
-        // Don't clear. Can try to omit the `length` bytes and read the next
-        // option
-        eat(data_length);
-        return std::unexpected{option_reading_error::malformed_security_length};
-      }
-
-      read_option read{option::k_security};
-      // -2 because option type and length already eaten.
-      read.m_data = eat(option::k_security_length - 2);
-      return read;
+      return try_read_security();
     }
 
     if (type == option::k_loose_source_routing) {
@@ -318,6 +284,41 @@ public:
   }
 
 private:
+  std::expected<read_option, option_reading_error> try_read_security() {
+    //-1 because option type already eaten.
+    if (!can_eat(option::k_security_length - 1)) {
+      // Can't eat length
+      return clear_and_error(option_reading_error::no_enough_data);
+    }
+
+    const std::uint8_t length = eat();
+
+    if (length != option::k_security_length) [[unlikely]] {
+
+      if (length < 2) {
+        // Can't eat more. Just return.
+        return std::unexpected{option_reading_error::malformed_security_length};
+      }
+
+      // Omit option type and length.
+      const std::uint8_t data_length = length - 2;
+
+      if (!can_eat(data_length)) {
+        return clear_and_error(option_reading_error::malformed_security_length);
+      }
+
+      // Don't clear. Can try to omit the `length` bytes and read the next
+      // option
+      eat(data_length);
+      return std::unexpected{option_reading_error::malformed_security_length};
+    }
+
+    read_option read{option::k_security};
+    // -2 because option type and length already eaten.
+    read.m_data = eat(option::k_security_length - 2);
+    return read;
+  }
+
   std::uint8_t eat() {
     assert(can_eat());
     const auto value = *m_options_buffer.begin();

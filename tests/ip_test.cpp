@@ -484,6 +484,38 @@ TEST_F(IpTest, OptionsReader_SecurityMalformedLength_TooSmall) {
   }
 }
 
+TEST_F(IpTest, OptionsReader_SecurityMalformedLength_TooBigNoEnoughData) {
+
+  for (std::uint8_t length = 3 * 4 + 1; length < 5 * 4 + 1; ++length) {
+
+    test_print(fmt::format("length={}", length));
+
+    auto header = make_default_header();
+
+    // Add option
+    header.m_options[0] = option::k_security.to_uint8();
+    header.m_options[1] = length;
+
+    header.m_version_and_length.m_internet_header_length += 3;
+
+    write_header(header);
+
+    const auto got_header = read_internet_header(m_buffer);
+    ASSERT_TRUE(got_header.has_value());
+
+    options_reader reader{got_header.value()};
+    // Get security with malformed length.
+    {
+      ASSERT_TRUE(reader.possibly_has_options());
+      const auto got_option = reader.try_read_next();
+      ASSERT_FALSE(got_option.has_value());
+      EXPECT_EQ(got_option.error(),
+                option_reading_error::malformed_security_length);
+    }
+    EXPECT_FALSE(reader.possibly_has_options());
+  }
+}
+
 TEST_F(IpTest, OptionsReader_Lsrr) {
 
   auto header = make_default_header();
