@@ -184,7 +184,16 @@ enum class option_reading_error { no_more_options, no_enough_data };
 
 class options_reader {
 public:
-  options_reader(const internet_header &header) : m_header{header} {}
+  options_reader(const internet_header &header) : m_header{header} {
+    const auto option_bytes =
+        m_header.m_version_and_length.m_internet_header_length * 4u -
+        k_internet_header_length_without_options;
+
+    if (option_bytes > 0) {
+      m_options_buffer =
+          std::span<const std::uint8_t>(&m_header.m_options[0], option_bytes);
+    }
+  }
 
   std::expected<read_option, option_reading_error> try_read_next() {
     if (m_options_buffer.empty()) {
