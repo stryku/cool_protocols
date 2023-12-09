@@ -261,14 +261,14 @@ public:
       // only length because option type already eaten.
       if (!can_eat()) {
         // Can't eat length
-        // TODO handle
+        return clear_and_error(option_reading_error::no_enough_data);
       }
 
       const std::uint8_t length = eat();
 
       // -3 because option type, length already eaten
       if (!can_eat(length - 2)) {
-        // TODO handle
+        return clear_and_error(option_reading_error::no_enough_data);
       }
 
       read_option read{option::k_loose_source_routing};
@@ -311,6 +311,12 @@ private:
     const auto data = m_options_buffer.subspan(0, n);
     m_options_buffer = m_options_buffer.subspan(n);
     return data;
+  }
+
+  std::expected<read_option, option_reading_error>
+  clear_and_error(option_reading_error err) {
+    m_options_buffer = {};
+    return std::unexpected{err};
   }
 
   std::span<const std::uint8_t> m_options_buffer;
