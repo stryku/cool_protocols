@@ -104,7 +104,7 @@ struct fmt::formatter<cool_protocols::ip::option::option_type>
 
   constexpr auto format(const cool_protocols::ip::option::option_type ot,
                         auto &ctx) {
-    return format_to(ctx.out(), "{{}, {}, {}}",
+    return format_to(ctx.out(), "{}, {}, {}",
                      (cool_protocols::ip::option::copied)ot.m_copied,
                      (cool_protocols::ip::option::classes)ot.m_class,
                      (cool_protocols::ip::option::number)ot.m_number);

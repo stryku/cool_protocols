@@ -2,6 +2,7 @@
 
 #include <fmt/format.h>
 
+#include <cassert>
 #include <cstdint>
 #include <cstring>
 #include <expected>
@@ -33,6 +34,10 @@ enum class number : std::uint8_t {
 
 struct option_type {
   constexpr option_type() = default;
+  explicit option_type(std::uint8_t value) {
+    std::memcpy(this, &value, sizeof(option_type));
+  }
+
   constexpr option_type(copied copied_, classes class_, number number_)
       : m_copied{(std::uint8_t)copied_}, m_class{(std::uint8_t)class_},
         m_number{(std::uint8_t)number_} {}
@@ -136,11 +141,6 @@ struct internet_header {
 
   constexpr bool operator==(const internet_header &) const = default;
 
-  constexpr bool has_options() const {
-    return m_version_and_length.m_internet_header_length >
-           k_internet_header_length_without_options;
-  }
-
 } __attribute__((packed));
 
 static_assert(sizeof(internet_header) == 60);
@@ -170,41 +170,54 @@ read_internet_header(std::span<const std::byte> buffer) {
 
   internet_header header;
   std::memcpy(&header, buffer.data(),
-              version_and_length.m_internet_header_length);
+              version_and_length.m_internet_header_length * 4);
 
   return header;
 }
 
 struct read_option {
   option::option_type m_type;
-  std::span<const std::uint8_t> m_data;
+  std::span<const std::uint8_t> m_data{};
 };
 
-enum class option_reading_error { no_more_options, no_enough_data };
+enum class option_reading_error { no_more_data, no_enough_data };
 
 class options_reader {
 public:
-  options_reader(const internet_header &header) : m_header{header} {
+  options_reader(const internet_header &header) {
     const auto option_bytes =
-        m_header.m_version_and_length.m_internet_header_length * 4u -
+        header.m_version_and_length.m_internet_header_length * 4u -
         k_internet_header_length_without_options;
 
     if (option_bytes > 0) {
       m_options_buffer =
-          std::span<const std::uint8_t>(&m_header.m_options[0], option_bytes);
+          std::span<const std::uint8_t>(&header.m_options[0], option_bytes);
     }
   }
 
+  constexpr bool possibly_has_options() const {
+    return !m_options_buffer.empty();
+  }
+
   std::expected<read_option, option_reading_error> try_read_next() {
-    if (m_options_buffer.empty()) {
-      return std::unexpected{option_reading_error::no_more_options};
+    assert(possibly_has_options());
+
+    const option::option_type type(eat());
+
+    if (type == option::k_end_of_list || type == option::k_no_operation) {
+      return read_option{type};
     }
 
     return {};
   }
 
 private:
-  [[maybe_unused]] const internet_header &m_header;
+  std::uint8_t eat() {
+    const auto value = *m_options_buffer.begin();
+    m_options_buffer = m_options_buffer.subspan(1);
+    return value;
+  }
+
   std::span<const std::uint8_t> m_options_buffer;
 };
 
