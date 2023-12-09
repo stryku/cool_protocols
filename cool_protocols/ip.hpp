@@ -91,8 +91,8 @@ constexpr option_type k_strict_source_routing{copied::copied, classes::control,
 
 constexpr std::uint8_t k_security_length = 11;
 constexpr std::uint8_t k_stream_id_length = 4;
-constexpr std::uint8_t k_min_lose_source_routing_length = 3;
-constexpr std::uint8_t k_min_lose_source_routing_pointer = 4;
+constexpr std::uint8_t k_min_source_routing_length = 3;
+constexpr std::uint8_t k_min_source_routing_pointer = 4;
 
 } // namespace option
 
@@ -206,7 +206,7 @@ struct read_option {
   std::span<const std::uint8_t> m_data{};
 };
 
-struct read_lose_source_routing_option {
+struct read_source_routing_option {
   std::uint8_t m_pointer = 0;
   std::span<const std::uint8_t> m_data{};
 };
@@ -249,20 +249,23 @@ public:
     }
 
     if (type == option::k_loose_source_routing) {
-      return try_read_lose_source_routing();
+      return try_read_source_routing(option::k_loose_source_routing);
+    }
+
+    if (type == option::k_strict_source_routing) {
+      return try_read_source_routing(option::k_strict_source_routing);
     }
 
     return {};
   }
 
-  static std::expected<read_lose_source_routing_option, option_reading_error>
-  decode_lose_source_routing(std::span<const std::uint8_t> data) {
+  static std::expected<read_source_routing_option, option_reading_error>
+  decode_source_routing(std::span<const std::uint8_t> data) {
 
-    read_lose_source_routing_option read;
+    read_source_routing_option read;
     read.m_pointer = *data.begin();
 
-    if (read.m_pointer < option::k_min_lose_source_routing_pointer)
-        [[unlikely]] {
+    if (read.m_pointer < option::k_min_source_routing_pointer) [[unlikely]] {
       return std::unexpected{option_reading_error::malformed_pointer_value};
     }
 
@@ -311,7 +314,7 @@ private:
   }
 
   std::expected<read_option, option_reading_error>
-  try_read_lose_source_routing() {
+  try_read_source_routing(option::option_type type) {
     // only length because option type already eaten.
     if (!can_eat()) {
       // Can't eat length
@@ -325,7 +328,7 @@ private:
       return clear_and_error(option_reading_error::no_enough_data);
     }
 
-    read_option read{option::k_loose_source_routing};
+    read_option read{type};
     read.m_data = eat(length - 2);
     return read;
   }
