@@ -155,29 +155,6 @@ TEST_F(IpTest, OptionsReader_OptionsBufferEmpty) {
   ASSERT_FALSE(reader.possibly_has_options());
 }
 
-TEST_F(IpTest, OptionsReader_EndOfListAsFirstOption) {
-
-  auto header = make_default_header();
-
-  // Add option
-  header.m_options[0] = option::k_end_of_list.to_uint8();
-  header.m_version_and_length.m_internet_header_length += 1;
-
-  write_header(header);
-
-  const auto got_header = read_internet_header(m_buffer);
-  ASSERT_TRUE(got_header.has_value());
-
-  options_reader reader{got_header.value()};
-
-  ASSERT_TRUE(reader.possibly_has_options());
-
-  const auto got_option = reader.try_read_next();
-  ASSERT_TRUE(got_option.has_value());
-  EXPECT_EQ(got_option.value().m_type, option::k_end_of_list);
-  EXPECT_TRUE(got_option.value().m_data.empty());
-}
-
 TEST_F(IpTest, OptionsReader_EndOfList) {
   // First octet of word
   {
@@ -271,6 +248,36 @@ TEST_F(IpTest, OptionsReader_EndOfList) {
       EXPECT_TRUE(got_option.value().m_data.empty());
     }
   }
+}
+
+TEST_F(IpTest, OptionsReader_OptionsEndExactlyAtHeaderEnd_NoEndOfListOption) {
+
+  auto header = make_default_header();
+
+  // Add option
+  header.m_options[0] = option::k_no_operation.to_uint8();
+  header.m_options[1] = option::k_no_operation.to_uint8();
+  header.m_options[2] = option::k_no_operation.to_uint8();
+  header.m_options[3] = option::k_no_operation.to_uint8();
+  header.m_version_and_length.m_internet_header_length += 1;
+
+  write_header(header);
+
+  const auto got_header = read_internet_header(m_buffer);
+  ASSERT_TRUE(got_header.has_value());
+
+  options_reader reader{got_header.value()};
+
+  // No-op
+  for (int i = 0; i < 4; ++i) {
+    ASSERT_TRUE(reader.possibly_has_options());
+    const auto got_option = reader.try_read_next();
+    ASSERT_TRUE(got_option.has_value());
+    EXPECT_EQ(got_option.value().m_type, option::k_no_operation);
+    EXPECT_TRUE(got_option.value().m_data.empty());
+  }
+
+  EXPECT_FALSE(reader.possibly_has_options());
 }
 
 } // namespace cool_protocols::ip::test
