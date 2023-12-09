@@ -46,6 +46,67 @@ struct internet_header {
 
 static_assert(sizeof(internet_header) == 60);
 
+namespace option {
+
+enum class copied : std::uint8_t { not_copied = 0, copied = 1 };
+
+enum class classes : std::uint8_t {
+  control = 0,
+  reserved = 1,
+  debugging_and_measurement = 2,
+  reserved2 = 3
+};
+
+enum class number : std::uint8_t {
+  end_of_list = 0,
+  no_operation = 1,
+  security = 2,
+  loose_source_routing = 3,
+  internet_timestamp = 4,
+  record_route = 7,
+  stream_id = 8,
+  strict_source_routing = 9
+};
+
+struct option_type {
+  constexpr option_type() = default;
+  constexpr option_type(copied copied_, classes class_, number number_)
+      : m_copied{(std::uint8_t)copied_}, m_class{(std::uint8_t)class_},
+        m_number{(std::uint8_t)number_} {}
+
+  std::uint8_t m_copied : 1 = 0;
+  std::uint8_t m_class : 2 = 0;
+  std::uint8_t m_number : 5 = 0;
+
+  constexpr bool operator==(const option_type &) const = default;
+
+  constexpr std::uint8_t to_uint8() const {
+    return (m_copied << 7u) + (m_class << 5) + m_number;
+  }
+
+} __attribute__((packed));
+
+static_assert(sizeof(option_type) == 1);
+
+constexpr option_type k_end_of_list{};
+constexpr option_type k_no_operation{copied::not_copied, classes::control,
+                                     number::no_operation};
+constexpr option_type k_security{copied::copied, classes::control,
+                                 number::security};
+constexpr option_type k_loose_source_routing{copied::copied, classes::control,
+                                             number::loose_source_routing};
+constexpr option_type k_internet_timestamp{copied::not_copied,
+                                           classes::debugging_and_measurement,
+                                           number::internet_timestamp};
+constexpr option_type k_record_route{copied::not_copied, classes::control,
+                                     number::record_route};
+constexpr option_type k_stream_id{copied::copied, classes::control,
+                                  number::stream_id};
+constexpr option_type k_strict_source_routing{copied::copied, classes::control,
+                                              number::strict_source_routing};
+
+} // namespace option
+
 constexpr std::size_t k_internet_header_length_without_options = 5 * 4;
 constexpr std::size_t k_min_valid_internet_header_length = 5;
 constexpr std::size_t k_max_valid_internet_header_length = (1 << 4) - 1u;
