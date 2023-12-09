@@ -147,7 +147,7 @@ TEST_F(IpTest, ReadInternetHeader_BufferTooSmallForHeader) {
   }
 }
 
-TEST_F(IpTest, OptionsReader_OptionsBufferEmpty) {
+TEST_F(IpTest, OptionsReader_NoOptions) {
   const auto got_header = read_internet_header(m_buffer);
   ASSERT_TRUE(got_header.has_value());
 
@@ -278,6 +278,60 @@ TEST_F(IpTest, OptionsReader_OptionsEndExactlyAtHeaderEnd_NoEndOfListOption) {
   }
 
   EXPECT_FALSE(reader.possibly_has_options());
+}
+
+TEST_F(IpTest, OptionsReader_Security) {
+
+  auto header = make_default_header();
+
+  // Add option
+  header.m_options[0] = option::k_security.to_uint8();
+  header.m_options[1] = 11; // Length
+  // Data
+  header.m_options[2] = 'S';
+  header.m_options[3] = 'S';
+  header.m_options[4] = 'C';
+  header.m_options[5] = 'C';
+  header.m_options[6] = 'H';
+  header.m_options[7] = 'H';
+  header.m_options[8] = 'T';
+  header.m_options[9] = 'T';
+  header.m_options[10] = 'T';
+
+  // End of list
+  header.m_options[11] = option::k_end_of_list.to_uint8();
+
+  header.m_version_and_length.m_internet_header_length += 3;
+
+  write_header(header);
+
+  const auto got_header = read_internet_header(m_buffer);
+  ASSERT_TRUE(got_header.has_value());
+
+  options_reader reader{got_header.value()};
+  {
+    ASSERT_TRUE(reader.possibly_has_options());
+    const auto got_option = reader.try_read_next();
+    ASSERT_TRUE(got_option.has_value());
+    ASSERT_EQ(got_option.value().m_type, option::k_security);
+    EXPECT_EQ(got_option.value().m_data.size(), 9);
+    EXPECT_EQ(got_option.value().m_data[0], 'S');
+    EXPECT_EQ(got_option.value().m_data[1], 'S');
+    EXPECT_EQ(got_option.value().m_data[2], 'C');
+    EXPECT_EQ(got_option.value().m_data[3], 'C');
+    EXPECT_EQ(got_option.value().m_data[4], 'H');
+    EXPECT_EQ(got_option.value().m_data[5], 'H');
+    EXPECT_EQ(got_option.value().m_data[6], 'T');
+    EXPECT_EQ(got_option.value().m_data[7], 'T');
+    EXPECT_EQ(got_option.value().m_data[8], 'T');
+  }
+  {
+    EXPECT_TRUE(reader.possibly_has_options());
+    const auto got_option = reader.try_read_next();
+    ASSERT_TRUE(got_option.has_value());
+    EXPECT_EQ(got_option.value().m_type, option::k_end_of_list);
+    EXPECT_TRUE(got_option.value().m_data.empty());
+  }
 }
 
 } // namespace cool_protocols::ip::test

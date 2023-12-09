@@ -88,6 +88,9 @@ constexpr option_type k_stream_id{copied::copied, classes::control,
 constexpr option_type k_strict_source_routing{copied::copied, classes::control,
                                               number::strict_source_routing};
 
+constexpr std::uint8_t k_security_length = 11;
+constexpr std::uint8_t k_stream_id_length = 4;
+
 } // namespace option
 
 constexpr std::size_t k_internet_header_length_without_options = 5 * 4;
@@ -228,14 +231,45 @@ public:
       return read_option{type};
     }
 
+    if (type == option::k_security) {
+
+      //-1 because option type already eaten.
+      if (!can_eat(option::k_security_length - 1)) {
+        // TODO handle
+      }
+
+      const std::uint8_t length = eat();
+
+      if (length != option::k_security_length) {
+        // TODO handle
+      }
+
+      read_option read{option::k_security};
+      // -2 because option type and length already eaten.
+      read.m_data = eat(option::k_security_length - 2);
+      return read;
+    }
+
     return {};
   }
 
 private:
   std::uint8_t eat() {
+    assert(can_eat());
     const auto value = *m_options_buffer.begin();
     m_options_buffer = m_options_buffer.subspan(1);
     return value;
+  }
+
+  bool can_eat(unsigned n = 1) const {
+    return m_options_buffer.size() >= n;
+  }
+
+  std::span<const std::uint8_t> eat(unsigned n) {
+    assert(can_eat(n));
+    const auto data = m_options_buffer.subspan(0, n);
+    m_options_buffer = m_options_buffer.subspan(n);
+    return data;
   }
 
   std::span<const std::uint8_t> m_options_buffer;
