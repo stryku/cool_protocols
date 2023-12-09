@@ -96,4 +96,23 @@ TEST_F(IpTest, ReadInternetHeader_ValidHeaderLength) {
   }
 }
 
+TEST_F(IpTest, ReadInternetHeader_BufferTooSmallForHeader) {
+
+  for (unsigned header_length = k_min_valid_internet_header_length;
+       header_length <= k_max_valid_internet_header_length; ++header_length) {
+
+    auto header = make_default_header();
+    header.m_version_and_length.m_internet_header_length = header_length;
+    write_header(header);
+
+    // Make buffer too small
+    m_buffer.resize(header_length - 1);
+
+    const auto got_header = read_internet_header(m_buffer);
+    ASSERT_FALSE(got_header.has_value());
+    EXPECT_EQ(got_header.error(),
+              internet_header_reading_error::no_enough_data);
+  }
+}
+
 } // namespace cool_protocols::ip::test
