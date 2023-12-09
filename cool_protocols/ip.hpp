@@ -249,18 +249,22 @@ public:
     }
 
     if (type == option::k_loose_source_routing) {
-      return try_read_source_routing(option::k_loose_source_routing);
+      return try_read_routing(option::k_loose_source_routing);
     }
 
     if (type == option::k_strict_source_routing) {
-      return try_read_source_routing(option::k_strict_source_routing);
+      return try_read_routing(option::k_strict_source_routing);
+    }
+
+    if (type == option::k_record_route) {
+      return try_read_routing(option::k_record_route);
     }
 
     return {};
   }
 
   static std::expected<read_source_routing_option, option_reading_error>
-  decode_source_routing(std::span<const std::uint8_t> data) {
+  decode_routing(std::span<const std::uint8_t> data) {
 
     read_source_routing_option read;
     read.m_pointer = *data.begin();
@@ -314,7 +318,7 @@ private:
   }
 
   std::expected<read_option, option_reading_error>
-  try_read_source_routing(option::option_type type) {
+  try_read_routing(option::option_type type) {
     // only length because option type already eaten.
     if (!can_eat()) {
       // Can't eat length
