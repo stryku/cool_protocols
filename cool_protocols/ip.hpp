@@ -247,22 +247,7 @@ public:
     }
 
     if (type == option::k_loose_source_routing) {
-      // only length because option type already eaten.
-      if (!can_eat()) {
-        // Can't eat length
-        return clear_and_error(option_reading_error::no_enough_data);
-      }
-
-      const std::uint8_t length = eat();
-
-      // -3 because option type, length already eaten
-      if (!can_eat(length - 2)) {
-        return clear_and_error(option_reading_error::no_enough_data);
-      }
-
-      read_option read{option::k_loose_source_routing};
-      read.m_data = eat(length - 2);
-      return read;
+      return try_read_lose_source_routing();
     }
 
     return {};
@@ -320,6 +305,26 @@ private:
     read_option read{option::k_security};
     // -2 because option type and length already eaten.
     read.m_data = eat(option::k_security_length - 2);
+    return read;
+  }
+
+  std::expected<read_option, option_reading_error>
+  try_read_lose_source_routing() {
+    // only length because option type already eaten.
+    if (!can_eat()) {
+      // Can't eat length
+      return clear_and_error(option_reading_error::no_enough_data);
+    }
+
+    const std::uint8_t length = eat();
+
+    // -3 because option type, length already eaten
+    if (!can_eat(length - 2)) {
+      return clear_and_error(option_reading_error::no_enough_data);
+    }
+
+    read_option read{option::k_loose_source_routing};
+    read.m_data = eat(length - 2);
     return read;
   }
 
