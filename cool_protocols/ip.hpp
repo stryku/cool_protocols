@@ -90,6 +90,8 @@ constexpr option_type k_strict_source_routing{copied::copied, classes::control,
 
 constexpr std::uint8_t k_security_length = 11;
 constexpr std::uint8_t k_stream_id_length = 4;
+constexpr std::uint8_t k_min_lose_source_routing_length = 3;
+constexpr std::uint8_t k_min_lose_source_routing_pointer = 4;
 
 } // namespace option
 
@@ -203,6 +205,11 @@ struct read_option {
   std::span<const std::uint8_t> m_data{};
 };
 
+struct read_lose_source_routing_option {
+  std::uint8_t m_pointer = 0;
+  std::span<const std::uint8_t> m_data{};
+};
+
 enum class option_reading_error { no_more_data, no_enough_data };
 
 class options_reader {
@@ -250,7 +257,41 @@ public:
       return read;
     }
 
+    if (type == option::k_loose_source_routing) {
+      // only length because option type already eaten.
+      if (!can_eat()) {
+        // Can't eat length
+        // TODO handle
+      }
+
+      const std::uint8_t length = eat();
+
+      // -3 because option type, length already eaten
+      if (!can_eat(length - 2)) {
+        // TODO handle
+      }
+
+      read_option read{option::k_loose_source_routing};
+      read.m_data = eat(length - 2);
+      return read;
+    }
+
     return {};
+  }
+
+  static read_lose_source_routing_option
+  decode_lose_source_routing(std::span<const std::uint8_t> data) {
+
+    read_lose_source_routing_option read;
+    read.m_pointer = *data.begin();
+
+    if (read.m_pointer < option::k_min_lose_source_routing_pointer) {
+      // Malformed pointer
+      // TODO handle
+    }
+
+    read.m_data = data.subspan(1);
+    return read;
   }
 
 private:
