@@ -286,6 +286,51 @@ TEST_F(IpTest, OptionsReader_OptionsEndExactlyAtHeaderEnd_NoEndOfListOption) {
   EXPECT_FALSE(reader.possibly_has_options());
 }
 
+TEST_F(IpTest, OptionsReader_CantEatLength) {
+
+  auto header = make_default_header();
+
+  // No-op
+  header.m_options[0] = option::k_no_operation.to_uint8();
+  header.m_options[1] = option::k_no_operation.to_uint8();
+  header.m_options[2] = option::k_no_operation.to_uint8();
+
+  header.m_version_and_length.m_internet_header_length += 1;
+
+  const std::array options_to_test{option::k_security,
+                                   option::k_loose_source_routing};
+
+  for (const auto &to_test : options_to_test) {
+
+    header.m_options[3] = to_test.to_uint8();
+
+    test_print(fmt::to_string(to_test));
+
+    write_header(header);
+
+    const auto got_header = read_internet_header(m_buffer);
+    ASSERT_TRUE(got_header.has_value());
+
+    options_reader reader{got_header.value()};
+
+    // No-op
+    for (int i = 0; i < 3; ++i) {
+      ASSERT_TRUE(reader.possibly_has_options());
+      const auto got_option = reader.try_read_next();
+      ASSERT_TRUE(got_option.has_value());
+      EXPECT_EQ(got_option.value().m_type, option::k_no_operation);
+      EXPECT_TRUE(got_option.value().m_data.empty());
+    }
+
+    ASSERT_TRUE(reader.possibly_has_options());
+    const auto got_option = reader.try_read_next();
+    ASSERT_FALSE(got_option.has_value());
+    EXPECT_EQ(got_option.error(), option_reading_error::no_enough_data);
+
+    EXPECT_FALSE(reader.possibly_has_options());
+  }
+}
+
 TEST_F(IpTest, OptionsReader_Security) {
 
   auto header = make_default_header();
@@ -631,14 +676,17 @@ TEST_F(IpTest, OptionsReader_Lsrr) {
     ASSERT_EQ(got_option.value().m_type, option::k_loose_source_routing);
     EXPECT_EQ(got_option.value().m_data.size(), 5); // Including pointer.
 
-    const read_lose_source_routing_option read_lsrr =
+    const auto read_lsrr =
         options_reader::decode_lose_source_routing(got_option->m_data);
-    ASSERT_EQ(read_lsrr.m_pointer, 4);
 
-    EXPECT_EQ(read_lsrr.m_data[0], 0x11);
-    EXPECT_EQ(read_lsrr.m_data[1], 0x22);
-    EXPECT_EQ(read_lsrr.m_data[2], 0x33);
-    EXPECT_EQ(read_lsrr.m_data[3], 0x44);
+    ASSERT_TRUE(read_lsrr.has_value());
+
+    ASSERT_EQ(read_lsrr.value().m_pointer, 4);
+
+    EXPECT_EQ(read_lsrr.value().m_data[0], 0x11);
+    EXPECT_EQ(read_lsrr.value().m_data[1], 0x22);
+    EXPECT_EQ(read_lsrr.value().m_data[2], 0x33);
+    EXPECT_EQ(read_lsrr.value().m_data[3], 0x44);
   }
   {
     EXPECT_TRUE(reader.possibly_has_options());
@@ -649,51 +697,6 @@ TEST_F(IpTest, OptionsReader_Lsrr) {
   }
 
   EXPECT_FALSE(reader.possibly_has_options());
-}
-
-TEST_F(IpTest, OptionsReader_CantEatLength) {
-
-  auto header = make_default_header();
-
-  // No-op
-  header.m_options[0] = option::k_no_operation.to_uint8();
-  header.m_options[1] = option::k_no_operation.to_uint8();
-  header.m_options[2] = option::k_no_operation.to_uint8();
-
-  header.m_version_and_length.m_internet_header_length += 1;
-
-  const std::array options_to_test{option::k_security,
-                                   option::k_loose_source_routing};
-
-  for (const auto &to_test : options_to_test) {
-
-    header.m_options[3] = to_test.to_uint8();
-
-    test_print(fmt::to_string(to_test));
-
-    write_header(header);
-
-    const auto got_header = read_internet_header(m_buffer);
-    ASSERT_TRUE(got_header.has_value());
-
-    options_reader reader{got_header.value()};
-
-    // No-op
-    for (int i = 0; i < 3; ++i) {
-      ASSERT_TRUE(reader.possibly_has_options());
-      const auto got_option = reader.try_read_next();
-      ASSERT_TRUE(got_option.has_value());
-      EXPECT_EQ(got_option.value().m_type, option::k_no_operation);
-      EXPECT_TRUE(got_option.value().m_data.empty());
-    }
-
-    ASSERT_TRUE(reader.possibly_has_options());
-    const auto got_option = reader.try_read_next();
-    ASSERT_FALSE(got_option.has_value());
-    EXPECT_EQ(got_option.error(), option_reading_error::no_enough_data);
-
-    EXPECT_FALSE(reader.possibly_has_options());
-  }
 }
 
 TEST_F(IpTest, OptionsReader_Lsrr_TooBigLength) {
@@ -724,6 +727,49 @@ TEST_F(IpTest, OptionsReader_Lsrr_TooBigLength) {
   EXPECT_EQ(got_option.error(), option_reading_error::no_enough_data);
 
   EXPECT_FALSE(reader.possibly_has_options());
+}
+
+TEST_F(IpTest, OptionsReader_Lsrr_MalformedPointer) {
+
+  for (std::uint8_t pointer = 0; pointer < 4; ++pointer) {
+    test_print(fmt::format("pointer={}", pointer));
+
+    auto header = make_default_header();
+
+    // No-op
+    header.m_options[0] = option::k_loose_source_routing.to_uint8();
+    header.m_options[1] = 7; // Length
+    header.m_options[2] = pointer;
+    // Address
+    header.m_options[3] = 0x11;
+    header.m_options[4] = 0x22;
+    header.m_options[5] = 0x33;
+    header.m_options[6] = 0x44;
+
+    header.m_version_and_length.m_internet_header_length += 2;
+
+    write_header(header);
+
+    const auto got_header = read_internet_header(m_buffer);
+    ASSERT_TRUE(got_header.has_value());
+
+    options_reader reader{got_header.value()};
+    {
+      ASSERT_TRUE(reader.possibly_has_options());
+      const auto got_option = reader.try_read_next();
+      ASSERT_TRUE(got_option.has_value());
+      ASSERT_EQ(got_option.value().m_type, option::k_loose_source_routing);
+      EXPECT_EQ(got_option.value().m_data.size(), 5); // Including pointer.
+
+      const auto read_lsrr =
+          options_reader::decode_lose_source_routing(got_option->m_data);
+      ASSERT_FALSE(read_lsrr.has_value());
+      EXPECT_EQ(read_lsrr.error(),
+                option_reading_error::malformed_pointer_value);
+    }
+
+    EXPECT_TRUE(reader.possibly_has_options());
+  }
 }
 
 } // namespace cool_protocols::ip::test

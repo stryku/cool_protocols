@@ -1,5 +1,6 @@
 #pragma once
 
+#include <__expected/unexpect.h>
 #include <fmt/format.h>
 
 #include <cassert>
@@ -213,7 +214,8 @@ struct read_lose_source_routing_option {
 enum class option_reading_error {
   no_more_data,
   no_enough_data,
-  malformed_security_length
+  malformed_security_length,
+  malformed_pointer_value
 };
 
 class options_reader {
@@ -253,15 +255,15 @@ public:
     return {};
   }
 
-  static read_lose_source_routing_option
+  static std::expected<read_lose_source_routing_option, option_reading_error>
   decode_lose_source_routing(std::span<const std::uint8_t> data) {
 
     read_lose_source_routing_option read;
     read.m_pointer = *data.begin();
 
-    if (read.m_pointer < option::k_min_lose_source_routing_pointer) {
-      // Malformed pointer
-      // TODO handle
+    if (read.m_pointer < option::k_min_lose_source_routing_pointer)
+        [[unlikely]] {
+      return std::unexpected{option_reading_error::malformed_pointer_value};
     }
 
     read.m_data = data.subspan(1);
@@ -318,7 +320,7 @@ private:
 
     const std::uint8_t length = eat();
 
-    // -3 because option type, length already eaten
+    // -2 because option type, length already eaten
     if (!can_eat(length - 2)) {
       return clear_and_error(option_reading_error::no_enough_data);
     }
