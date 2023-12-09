@@ -1,4 +1,5 @@
 #include "cool_protocols/ip.hpp"
+#include "cool_protocols/ip_fmt.hpp"
 
 #include <fmt/format.h>
 

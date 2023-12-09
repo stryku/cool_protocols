@@ -171,28 +171,3 @@ read_internet_header(std::span<const std::byte> buffer) {
 }
 
 } // namespace cool_protocols::ip
-
-template <> struct fmt::formatter<cool_protocols::ip::internet_header> {
-
-  constexpr auto parse(auto &ctx) const {
-    return ctx.begin();
-  }
-
-  constexpr auto format(const cool_protocols::ip::internet_header &h,
-                        auto &ctx) {
-    return format_to(
-        ctx.out(),
-        "version={}, header-length={}, tos-precedence={}, tos-delay={}, "
-        "tos-throughput={}, tos-reliability={}, tos-reserved={}, "
-        "total-length={}, identification={}, flags={:#x}, fragment-offset={}, "
-        "ttl={}, protocol={}, checksum={}, src-address={:#x}, "
-        "dest-address={:#x}",
-        h.m_version_and_length.m_version,
-        h.m_version_and_length.m_internet_header_length,
-        h.m_type_of_service.m_precedence, h.m_type_of_service.m_delay,
-        h.m_type_of_service.m_throughput, h.m_type_of_service.m_reliability,
-        h.m_type_of_service.m_reserved, h.m_total_length, h.m_identification,
-        h.m_flags, h.m_fragment_offset, h.m_time_to_live, h.m_protocol,
-        h.m_header_checksum, h.m_source_address, h.m_destination_address);
-  }
-};
