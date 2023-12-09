@@ -48,7 +48,7 @@ static_assert(sizeof(internet_header) == 60);
 
 constexpr std::size_t k_internet_header_length_without_options = 5 * 4;
 constexpr std::size_t k_min_valid_internet_header_length = 5;
-constexpr std::size_t k_max_valid_internet_header_length = 64 / 4;
+constexpr std::size_t k_max_valid_internet_header_length = (1 << 4) - 1u;
 
 namespace type_of_service {
 
@@ -83,7 +83,7 @@ enum class internet_header_reading_error { no_enough_data, malformed_length };
 
 inline std::expected<internet_header, internet_header_reading_error>
 read_internet_header(std::span<const std::byte> buffer) {
-  if (buffer.empty()) {
+  if (buffer.size() < sizeof(internet_header::version_and_length)) {
     return std::unexpected{internet_header_reading_error::no_enough_data};
   }
 
