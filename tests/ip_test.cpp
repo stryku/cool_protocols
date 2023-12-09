@@ -6,6 +6,10 @@
 #include <atomic>
 #include <gtest/gtest.h>
 
+void test_print(std::string_view str) {
+  fmt::print("[          ] {}\n", str);
+}
+
 namespace cool_protocols::ip {
 
 std::ostream &operator<<(std::ostream &out, const internet_header &header) {
@@ -442,7 +446,7 @@ TEST_F(IpTest, OptionsReader_Lsrr) {
   EXPECT_FALSE(reader.possibly_has_options());
 }
 
-TEST_F(IpTest, OptionsReader_Lsrr_CantEatLength) {
+TEST_F(IpTest, OptionsReader_CantEatLength) {
 
   auto header = make_default_header();
 
@@ -450,32 +454,41 @@ TEST_F(IpTest, OptionsReader_Lsrr_CantEatLength) {
   header.m_options[0] = option::k_no_operation.to_uint8();
   header.m_options[1] = option::k_no_operation.to_uint8();
   header.m_options[2] = option::k_no_operation.to_uint8();
-  header.m_options[3] = option::k_loose_source_routing.to_uint8();
 
   header.m_version_and_length.m_internet_header_length += 1;
 
-  write_header(header);
+  const std::array options_to_test{option::k_security,
+                                   option::k_loose_source_routing};
 
-  const auto got_header = read_internet_header(m_buffer);
-  ASSERT_TRUE(got_header.has_value());
+  for (const auto &to_test : options_to_test) {
 
-  options_reader reader{got_header.value()};
+    header.m_options[3] = to_test.to_uint8();
 
-  // No-op
-  for (int i = 0; i < 3; ++i) {
+    test_print(fmt::to_string(to_test));
+
+    write_header(header);
+
+    const auto got_header = read_internet_header(m_buffer);
+    ASSERT_TRUE(got_header.has_value());
+
+    options_reader reader{got_header.value()};
+
+    // No-op
+    for (int i = 0; i < 3; ++i) {
+      ASSERT_TRUE(reader.possibly_has_options());
+      const auto got_option = reader.try_read_next();
+      ASSERT_TRUE(got_option.has_value());
+      EXPECT_EQ(got_option.value().m_type, option::k_no_operation);
+      EXPECT_TRUE(got_option.value().m_data.empty());
+    }
+
     ASSERT_TRUE(reader.possibly_has_options());
     const auto got_option = reader.try_read_next();
-    ASSERT_TRUE(got_option.has_value());
-    EXPECT_EQ(got_option.value().m_type, option::k_no_operation);
-    EXPECT_TRUE(got_option.value().m_data.empty());
+    ASSERT_FALSE(got_option.has_value());
+    EXPECT_EQ(got_option.error(), option_reading_error::no_enough_data);
+
+    EXPECT_FALSE(reader.possibly_has_options());
   }
-
-  ASSERT_TRUE(reader.possibly_has_options());
-  const auto got_option = reader.try_read_next();
-  ASSERT_FALSE(got_option.has_value());
-  EXPECT_EQ(got_option.error(), option_reading_error::no_enough_data);
-
-  EXPECT_FALSE(reader.possibly_has_options());
 }
 
 TEST_F(IpTest, OptionsReader_Lsrr_TooBigLength) {

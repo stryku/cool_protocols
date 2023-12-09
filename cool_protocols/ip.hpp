@@ -242,7 +242,8 @@ public:
 
       //-1 because option type already eaten.
       if (!can_eat(option::k_security_length - 1)) {
-        // TODO handle
+        // Can't eat length
+        return clear_and_error(option_reading_error::no_enough_data);
       }
 
       const std::uint8_t length = eat();
