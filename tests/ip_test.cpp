@@ -116,4 +116,15 @@ TEST_F(IpTest, ReadInternetHeader_BufferTooSmallForHeader) {
   }
 }
 
+TEST_F(IpTest, OptionsReader_NoOptions) {
+  const auto got_header = read_internet_header(m_buffer);
+  ASSERT_TRUE(got_header.has_value());
+
+  options_reader reader{got_header.value()};
+
+  const auto got_option = reader.try_read_next();
+  ASSERT_FALSE(got_option.has_value());
+  EXPECT_EQ(got_option.error(), option_reading_error::no_more_options);
+}
+
 } // namespace cool_protocols::ip::test

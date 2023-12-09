@@ -9,43 +9,6 @@
 
 namespace cool_protocols::ip {
 
-struct internet_header {
-
-  struct version_and_length {
-    std::uint8_t m_version : 4 = 0;
-    std::uint8_t m_internet_header_length : 4 = 0;
-    constexpr bool operator==(const version_and_length &) const = default;
-  } __attribute__((packed)) m_version_and_length;
-
-  struct type_of_service {
-    std::uint8_t m_precedence : 3 = 0;
-    std::uint8_t m_delay : 1 = 0;
-    std::uint8_t m_throughput : 1 = 0;
-    std::uint8_t m_reliability : 1 = 0;
-    std::uint8_t m_reserved : 2 = 0;
-    constexpr bool operator==(const type_of_service &) const = default;
-
-  } __attribute__((packed)) m_type_of_service;
-
-  std::uint16_t m_total_length = 0;
-
-  std::uint16_t m_identification = 0;
-  std::uint8_t m_flags : 3 = 0;
-  std::uint16_t m_fragment_offset : 13 = 0;
-
-  std::uint8_t m_time_to_live = 0;
-  std::uint8_t m_protocol = 0;
-  std::uint16_t m_header_checksum = 0;
-  std::uint32_t m_source_address = 0;
-  std::uint32_t m_destination_address = 0;
-  std::uint8_t m_options[40]{};
-
-  constexpr bool operator==(const internet_header &) const = default;
-
-} __attribute__((packed));
-
-static_assert(sizeof(internet_header) == 60);
-
 namespace option {
 
 enum class copied : std::uint8_t { not_copied = 0, copied = 1 };
@@ -140,6 +103,48 @@ constexpr std::uint8_t k_more_fragments = 1;
 
 } // namespace flags
 
+struct internet_header {
+
+  struct version_and_length {
+    std::uint8_t m_version : 4 = 0;
+    std::uint8_t m_internet_header_length : 4 = 0;
+    constexpr bool operator==(const version_and_length &) const = default;
+  } __attribute__((packed)) m_version_and_length;
+
+  struct type_of_service {
+    std::uint8_t m_precedence : 3 = 0;
+    std::uint8_t m_delay : 1 = 0;
+    std::uint8_t m_throughput : 1 = 0;
+    std::uint8_t m_reliability : 1 = 0;
+    std::uint8_t m_reserved : 2 = 0;
+    constexpr bool operator==(const type_of_service &) const = default;
+
+  } __attribute__((packed)) m_type_of_service;
+
+  std::uint16_t m_total_length = 0;
+
+  std::uint16_t m_identification = 0;
+  std::uint8_t m_flags : 3 = 0;
+  std::uint16_t m_fragment_offset : 13 = 0;
+
+  std::uint8_t m_time_to_live = 0;
+  std::uint8_t m_protocol = 0;
+  std::uint16_t m_header_checksum = 0;
+  std::uint32_t m_source_address = 0;
+  std::uint32_t m_destination_address = 0;
+  std::uint8_t m_options[40]{};
+
+  constexpr bool operator==(const internet_header &) const = default;
+
+  constexpr bool has_options() const {
+    return m_version_and_length.m_internet_header_length >
+           k_internet_header_length_without_options;
+  }
+
+} __attribute__((packed));
+
+static_assert(sizeof(internet_header) == 60);
+
 enum class internet_header_reading_error { no_enough_data, malformed_length };
 
 inline std::expected<internet_header, internet_header_reading_error>
@@ -169,5 +174,29 @@ read_internet_header(std::span<const std::byte> buffer) {
 
   return header;
 }
+
+struct read_option {
+  option::option_type m_type;
+  std::span<const std::uint8_t> m_data;
+};
+
+enum class option_reading_error { no_more_options, no_enough_data };
+
+class options_reader {
+public:
+  options_reader(const internet_header &header) : m_header{header} {}
+
+  std::expected<read_option, option_reading_error> try_read_next() {
+    if (m_options_buffer.empty()) {
+      return std::unexpected{option_reading_error::no_more_options};
+    }
+
+    return {};
+  }
+
+private:
+  [[maybe_unused]] const internet_header &m_header;
+  std::span<const std::uint8_t> m_options_buffer;
+};
 
 } // namespace cool_protocols::ip
