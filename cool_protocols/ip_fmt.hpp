@@ -125,8 +125,12 @@ struct fmt::formatter<cool_protocols::ip::option_reading_error>
         return format_to(ctx.out(), "no_enough_data");
       case cool_protocols::ip::option_reading_error::malformed_security_length:
         return format_to(ctx.out(), "malformed_security_length");
-      default:
-        return format_to(ctx.out(), "?");
+      case cool_protocols::ip::option_reading_error::malformed_stream_id_length:
+        return format_to(ctx.out(), "malformed_stream_id_length");
+      case cool_protocols::ip::option_reading_error::malformed_pointer_value:
+        return format_to(ctx.out(), "malformed_pointer_value");
     }
+
+    return format_to(ctx.out(), "?");
   }
 };

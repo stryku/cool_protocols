@@ -297,9 +297,10 @@ TEST_F(IpTest, OptionsReader_CantEatLength) {
 
   header.m_version_and_length.m_internet_header_length += 1;
 
-  const std::array options_to_test{
-      option::k_security, option::k_loose_source_routing,
-      option::k_strict_source_routing, option::k_record_route};
+  const std::array options_to_test{option::k_security,
+                                   option::k_loose_source_routing,
+                                   option::k_strict_source_routing,
+                                   option::k_record_route, option::k_stream_id};
 
   for (const auto &to_test : options_to_test) {
 
@@ -1019,6 +1020,197 @@ TEST_F(IpTest, OptionsReader_RecordRouting_MalformedPointer) {
 
     EXPECT_TRUE(reader.possibly_has_options());
   }
+}
+
+TEST_F(IpTest, OptionsReader_StreamId) {
+
+  auto header = make_default_header();
+
+  // No-op
+  header.m_options[0] = option::k_stream_id.to_uint8();
+  header.m_options[1] = option::k_stream_id_length;
+  // Id
+  header.m_options[2] = 0x11;
+  header.m_options[3] = 0x22;
+
+  header.m_version_and_length.m_internet_header_length += 1;
+
+  write_header(header);
+
+  const auto got_header = read_internet_header(m_buffer);
+  ASSERT_TRUE(got_header.has_value());
+
+  options_reader reader{got_header.value()};
+  {
+    ASSERT_TRUE(reader.possibly_has_options());
+    const auto got_option = reader.try_read_next();
+    ASSERT_TRUE(got_option.has_value());
+    ASSERT_EQ(got_option.value().m_type, option::k_stream_id);
+    EXPECT_EQ(got_option.value().m_data.size(), 2);
+    EXPECT_EQ(got_option.value().m_data[0], 0x11);
+    EXPECT_EQ(got_option.value().m_data[1], 0x22);
+  }
+
+  EXPECT_FALSE(reader.possibly_has_options());
+}
+
+TEST_F(IpTest, OptionsReader_StreamId_TooSmall) {
+
+  for (std::uint8_t length = 0; length < option::k_stream_id_length; ++length) {
+
+    test_print(fmt::format("length={}", length));
+
+    auto header = make_default_header();
+
+    // Add option
+    header.m_options[0] = option::k_stream_id.to_uint8();
+    header.m_options[1] = length;
+
+    // End of list
+    if (length < 2) {
+      header.m_options[2] = option::k_end_of_list.to_uint8();
+    } else {
+      header.m_options[length] = option::k_end_of_list.to_uint8();
+    }
+
+    header.m_version_and_length.m_internet_header_length += 1;
+
+    write_header(header);
+
+    const auto got_header = read_internet_header(m_buffer);
+    ASSERT_TRUE(got_header.has_value());
+
+    options_reader reader{got_header.value()};
+    // Get security with malformed length.
+    {
+      ASSERT_TRUE(reader.possibly_has_options());
+      const auto got_option = reader.try_read_next();
+      ASSERT_FALSE(got_option.has_value());
+      EXPECT_EQ(got_option.error(),
+                option_reading_error::malformed_stream_id_length);
+    }
+    // Expect end of list
+    {
+      ASSERT_TRUE(reader.possibly_has_options());
+      const auto got_option = reader.try_read_next();
+      ASSERT_TRUE(got_option.has_value());
+      EXPECT_EQ(got_option.value().m_type, option::k_end_of_list);
+      EXPECT_TRUE(got_option.value().m_data.empty());
+    }
+  }
+}
+
+TEST_F(IpTest, OptionsReader_StreamId_NoEnoughData) {
+
+  const std::uint8_t max_option_octets = 10;
+
+  for (std::uint8_t length = 5; length <= max_option_octets * 4; ++length) {
+
+    test_print(fmt::format("length={}", length));
+
+    auto header = make_default_header();
+
+    // Add option
+    header.m_options[0] = option::k_stream_id.to_uint8();
+    header.m_options[1] = length;
+
+    header.m_version_and_length.m_internet_header_length += 1;
+
+    write_header(header);
+
+    const auto got_header = read_internet_header(m_buffer);
+    ASSERT_TRUE(got_header.has_value());
+
+    options_reader reader{got_header.value()};
+    // Get security with malformed length.
+    {
+      ASSERT_TRUE(reader.possibly_has_options());
+      const auto got_option = reader.try_read_next();
+      ASSERT_FALSE(got_option.has_value());
+      EXPECT_EQ(got_option.error(),
+                option_reading_error::malformed_stream_id_length);
+    }
+    EXPECT_FALSE(reader.possibly_has_options());
+  }
+}
+
+TEST_F(IpTest, OptionsReader_StreamId_CanOmit) {
+
+  const std::uint8_t max_option_octets = 10;
+
+  for (std::uint8_t length = 0; length <= max_option_octets * 4 - 1; ++length) {
+
+    if (length == option::k_stream_id_length) {
+      // Omit valid length
+      continue;
+    }
+
+    test_print(fmt::format("length={}", length));
+
+    auto header = make_default_header();
+
+    // Add option
+    header.m_options[0] = option::k_stream_id.to_uint8();
+    header.m_options[1] = length;
+
+    // End of list
+    if (length < 2) {
+      header.m_options[2] = option::k_end_of_list.to_uint8();
+    } else {
+      header.m_options[length] = option::k_end_of_list.to_uint8();
+    }
+
+    header.m_version_and_length.m_internet_header_length += max_option_octets;
+
+    write_header(header);
+
+    const auto got_header = read_internet_header(m_buffer);
+    ASSERT_TRUE(got_header.has_value());
+
+    options_reader reader{got_header.value()};
+    // Get security with malformed length.
+    {
+      ASSERT_TRUE(reader.possibly_has_options());
+      const auto got_option = reader.try_read_next();
+      ASSERT_FALSE(got_option.has_value());
+      EXPECT_EQ(got_option.error(),
+                option_reading_error::malformed_stream_id_length);
+    }
+    // Expect end of list
+    {
+      ASSERT_TRUE(reader.possibly_has_options());
+      const auto got_option = reader.try_read_next();
+      ASSERT_TRUE(got_option.has_value());
+      EXPECT_EQ(got_option.value().m_type, option::k_end_of_list);
+      EXPECT_TRUE(got_option.value().m_data.empty());
+    }
+  }
+
+  // Test ending exactly at header end
+  test_print("length=40");
+  auto header = make_default_header();
+
+  // Add option
+  header.m_options[0] = option::k_stream_id.to_uint8();
+  header.m_options[1] = 40;
+
+  header.m_version_and_length.m_internet_header_length += 10;
+
+  write_header(header);
+
+  const auto got_header = read_internet_header(m_buffer);
+  ASSERT_TRUE(got_header.has_value());
+
+  options_reader reader{got_header.value()};
+  // Get security with malformed length.
+  {
+    ASSERT_TRUE(reader.possibly_has_options());
+    const auto got_option = reader.try_read_next();
+    ASSERT_FALSE(got_option.has_value());
+    EXPECT_EQ(got_option.error(),
+              option_reading_error::malformed_stream_id_length);
+  }
+  EXPECT_FALSE(reader.possibly_has_options());
 }
 
 } // namespace cool_protocols::ip::test

@@ -215,6 +215,7 @@ enum class option_reading_error {
   no_more_data,
   no_enough_data,
   malformed_security_length,
+  malformed_stream_id_length,
   malformed_pointer_value
 };
 
@@ -258,6 +259,10 @@ public:
 
     if (type == option::k_record_route) {
       return try_read_routing(option::k_record_route);
+    }
+
+    if (type == option::k_stream_id) {
+      return try_read_stream_id();
     }
 
     return {};
@@ -333,6 +338,46 @@ private:
     }
 
     read_option read{type};
+    read.m_data = eat(length - 2);
+    return read;
+  }
+
+  std::expected<read_option, option_reading_error> try_read_stream_id() {
+    // only length because option type already eaten.
+    if (!can_eat()) {
+      // Can't eat length
+      return clear_and_error(option_reading_error::no_enough_data);
+    }
+
+    const std::uint8_t length = eat();
+
+    if (length != option::k_stream_id_length) [[unlikely]] {
+      if (length < 2) {
+        // Can't eat more. Just return.
+        return std::unexpected{
+            option_reading_error::malformed_stream_id_length};
+      }
+
+      // Omit option type and length.
+      const std::uint8_t data_length = length - 2;
+
+      if (!can_eat(data_length)) {
+        return clear_and_error(
+            option_reading_error::malformed_stream_id_length);
+      }
+
+      // Don't clear. Can try to omit the `length` bytes and read the next
+      // option
+      eat(data_length);
+      return std::unexpected{option_reading_error::malformed_stream_id_length};
+    }
+
+    // -2 because option type, length already eaten
+    if (!can_eat(length - 2)) {
+      return clear_and_error(option_reading_error::no_enough_data);
+    }
+
+    read_option read{option::k_stream_id};
     read.m_data = eat(length - 2);
     return read;
   }
