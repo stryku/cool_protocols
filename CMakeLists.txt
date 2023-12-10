@@ -39,3 +39,4 @@ endif()
 
 add_subdirectory(cool_protocols)
 add_subdirectory(tests)
+add_subdirectory(examples)
