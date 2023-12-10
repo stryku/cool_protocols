@@ -246,6 +246,31 @@ struct decoded_internet_timestamp_option {
   std::span<const std::uint8_t> m_data;
 };
 
+enum class security_level : std::uint16_t {
+  unclassified = 0,
+  confidential = 0b11110001'00110101,
+  efto = 0b01111000'10011010,
+  mmmm = 0b10111100'01001101,
+  prog = 0b01011110'00100110,
+  restricted = 0b10101111'00010011,
+  secret = 0b11010111'10001000,
+  top_secret = 0b01101011'11000101,
+  reserved1 = 0b00110101'11100010,
+  reserved2 = 0b10011010'11110001,
+  reserved3 = 0b01001101'01111000,
+  reserved4 = 0b00100100'10111101,
+  reserved5 = 0b00010011'01011110,
+  reserved6 = 0b10001001'10101111,
+  reserved7 = 0b11100010'01101011
+};
+
+struct decoded_security_option {
+  security_level m_security_level = security_level::unclassified;
+  std::uint16_t m_compartments = 0;
+  std::uint16_t m_handling_restrictions = 0;
+  std::uint32_t m_transmission_control_code : 24 = 0;
+};
+
 enum class option_reading_error {
   no_more_data,
   no_enough_data,
@@ -337,6 +362,32 @@ public:
         internet_timestamp_overflow_flags{*data.begin()};
 
     decoded.m_data = data.subspan(1);
+
+    return decoded;
+  }
+
+  static std::expected<decoded_security_option, option_reading_error>
+  decode_security(std::span<const std::uint8_t> data) {
+
+    //-2 because not option type and length
+    assert(data.size() == option::k_security_length - 2);
+
+    decoded_security_option decoded;
+
+    const auto eat16 = [&] {
+      const std::uint16_t ret =
+          ((std::uint16_t)data[0] << 8u) | ((std::uint16_t)data[1]);
+      data = data.subspan(2);
+      return ret;
+    };
+
+    decoded.m_security_level = (security_level)eat16();
+    decoded.m_compartments = eat16();
+    decoded.m_handling_restrictions = eat16();
+
+    decoded.m_transmission_control_code = ((std::uint32_t)data[0] << 16u) |
+                                          ((std::uint32_t)data[1] << 8u) |
+                                          ((std::uint32_t)data[2]);
 
     return decoded;
   }

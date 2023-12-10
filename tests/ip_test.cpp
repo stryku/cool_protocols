@@ -371,6 +371,7 @@ TEST_F(IpTest, OptionsReader_Security) {
     ASSERT_TRUE(got_option.has_value());
     ASSERT_EQ(got_option.value().m_type, option::k_security);
     EXPECT_EQ(got_option.value().m_data.size(), 9);
+    // TODO decode data
     EXPECT_EQ(got_option.value().m_data[0], 'S');
     EXPECT_EQ(got_option.value().m_data[1], 'S');
     EXPECT_EQ(got_option.value().m_data[2], 'C');
