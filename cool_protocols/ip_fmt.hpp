@@ -160,3 +160,23 @@ struct fmt::formatter<cool_protocols::ip::internet_overflow_flag>
     return format_to(ctx.out(), "?");
   }
 };
+
+template <>
+struct fmt::formatter<cool_protocols::ip::internet_header_reading_error>
+    : cool_protocols::detail::no_parse {
+
+  constexpr auto
+  format(const cool_protocols::ip::internet_header_reading_error err,
+         auto &ctx) {
+
+    switch (err) {
+      case cool_protocols::ip::internet_header_reading_error::no_enough_data:
+        return format_to(ctx.out(), "no_enough_data");
+      case cool_protocols::ip::internet_header_reading_error::malformed_length:
+        return format_to(ctx.out(), "malformed_length");
+        ;
+    }
+
+    return format_to(ctx.out(), "?");
+  }
+};

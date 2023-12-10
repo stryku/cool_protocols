@@ -171,7 +171,7 @@ static_assert(sizeof(internet_header) == 60);
 enum class internet_header_reading_error { no_enough_data, malformed_length };
 
 inline std::expected<internet_header, internet_header_reading_error>
-read_internet_header(std::span<const std::byte> buffer) {
+read_internet_header(std::span<const std::uint8_t> buffer) {
   if (buffer.size() < sizeof(internet_header::version_and_length)) {
     return std::unexpected{internet_header_reading_error::no_enough_data};
   }
