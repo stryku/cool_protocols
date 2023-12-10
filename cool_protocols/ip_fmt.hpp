@@ -95,6 +95,8 @@ struct fmt::formatter<cool_protocols::ip::option::number>
       case cool_protocols::ip::option::number::strict_source_routing:
         return format_to(ctx.out(), "strict_source_routing");
     }
+
+    return format_to(ctx.out(), "?");
   }
 };
 
@@ -129,6 +131,30 @@ struct fmt::formatter<cool_protocols::ip::option_reading_error>
         return format_to(ctx.out(), "malformed_stream_id_length");
       case cool_protocols::ip::option_reading_error::malformed_pointer_value:
         return format_to(ctx.out(), "malformed_pointer_value");
+      case cool_protocols::ip::option_reading_error::
+          malformed_internet_timestamp_length:
+        return format_to(ctx.out(), "malformed_internet_timestamp_length");
+    }
+
+    return format_to(ctx.out(), "?");
+  }
+};
+
+template <>
+struct fmt::formatter<cool_protocols::ip::internet_overflow_flag>
+    : cool_protocols::detail::no_parse {
+
+  constexpr auto format(const cool_protocols::ip::internet_overflow_flag err,
+                        auto &ctx) {
+
+    switch (err) {
+      case cool_protocols::ip::internet_overflow_flag::timestamp_only:
+        return format_to(ctx.out(), "timestamp_only");
+      case cool_protocols::ip::internet_overflow_flag::
+          timestamp_preceded_with_address:
+        return format_to(ctx.out(), "timestamp_preceded_with_address");
+      case cool_protocols::ip::internet_overflow_flag::address_is_prespecified:
+        return format_to(ctx.out(), "address_is_prespecified");
     }
 
     return format_to(ctx.out(), "?");

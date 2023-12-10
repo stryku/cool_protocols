@@ -91,6 +91,8 @@ constexpr option_type k_strict_source_routing{copied::copied, classes::control,
 
 constexpr std::uint8_t k_security_length = 11;
 constexpr std::uint8_t k_stream_id_length = 4;
+constexpr std::uint8_t k_min_internet_timestamp_length = 4;
+constexpr std::uint8_t k_min_internet_timestamp_pointer = 5;
 constexpr std::uint8_t k_min_source_routing_length = 3;
 constexpr std::uint8_t k_min_source_routing_pointer = 4;
 
@@ -206,9 +208,42 @@ struct read_option {
   std::span<const std::uint8_t> m_data{};
 };
 
+// TODO rename to decoded_routing_option
 struct read_source_routing_option {
   std::uint8_t m_pointer = 0;
   std::span<const std::uint8_t> m_data{};
+};
+
+enum class internet_overflow_flag : std::uint8_t {
+  timestamp_only = 0,
+  timestamp_preceded_with_address = 1,
+  address_is_prespecified = 3
+};
+
+struct internet_timestamp_overflow_flags {
+  std::uint8_t m_value = 0;
+
+  std::uint8_t get_overflow() const {
+    return (m_value & 0xf0) >> 4u;
+  }
+
+  void set_overflow(std::uint8_t value) {
+    m_value |= (value << 4u);
+  }
+
+  internet_overflow_flag get_flags() const {
+    return (internet_overflow_flag)(m_value & 0xf);
+  }
+
+  void set_flags(internet_overflow_flag value) {
+    m_value |= (std::uint8_t)value;
+  }
+};
+
+struct decoded_internet_timestamp_option {
+  std::uint8_t m_pointer = 0;
+  internet_timestamp_overflow_flags m_overflow_and_flags;
+  std::span<const std::uint8_t> m_data;
 };
 
 enum class option_reading_error {
@@ -216,6 +251,7 @@ enum class option_reading_error {
   no_enough_data,
   malformed_security_length,
   malformed_stream_id_length,
+  malformed_internet_timestamp_length,
   malformed_pointer_value
 };
 
@@ -265,6 +301,10 @@ public:
       return try_read_stream_id();
     }
 
+    if (type == option::k_internet_timestamp) {
+      return try_read_internet_timestamp();
+    }
+
     return {};
   }
 
@@ -280,6 +320,25 @@ public:
 
     read.m_data = data.subspan(1);
     return read;
+  }
+
+  static std::expected<decoded_internet_timestamp_option, option_reading_error>
+  decode_internet_timestamp(std::span<const std::uint8_t> data) {
+
+    decoded_internet_timestamp_option decoded;
+    decoded.m_pointer = *data.begin();
+
+    if (decoded.m_pointer < option::k_min_internet_timestamp_pointer) {
+      return std::unexpected{option_reading_error::malformed_pointer_value};
+    }
+
+    data = data.subspan(1);
+    decoded.m_overflow_and_flags =
+        internet_timestamp_overflow_flags{*data.begin()};
+
+    decoded.m_data = data.subspan(1);
+
+    return decoded;
   }
 
 private:
@@ -378,6 +437,48 @@ private:
     }
 
     read_option read{option::k_stream_id};
+    read.m_data = eat(length - 2);
+    return read;
+  }
+
+  std::expected<read_option, option_reading_error>
+  try_read_internet_timestamp() {
+    // only length because option type already eaten.
+    if (!can_eat()) {
+      // Can't eat length
+      return clear_and_error(option_reading_error::no_enough_data);
+    }
+
+    const std::uint8_t length = eat();
+
+    if (length < option::k_min_internet_timestamp_length) [[unlikely]] {
+      if (length < 2) {
+        // Can't eat more. Just return.
+        return std::unexpected{
+            option_reading_error::malformed_internet_timestamp_length};
+      }
+
+      // Omit option type and length.
+      const std::uint8_t data_length = length - 2;
+
+      if (!can_eat(data_length)) {
+        return clear_and_error(
+            option_reading_error::malformed_internet_timestamp_length);
+      }
+
+      // Don't clear. Can try to omit the `length` bytes and read the next
+      // option
+      eat(data_length);
+      return std::unexpected{
+          option_reading_error::malformed_internet_timestamp_length};
+    }
+
+    // -2 because option type, length already eaten
+    if (!can_eat(length - 2)) {
+      return clear_and_error(option_reading_error::no_enough_data);
+    }
+
+    read_option read{option::k_internet_timestamp};
     read.m_data = eat(length - 2);
     return read;
   }

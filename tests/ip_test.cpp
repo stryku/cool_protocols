@@ -19,6 +19,7 @@ namespace cool_protocols::ip {
 
 OSTREAM_OP(internet_header)
 OSTREAM_OP(option_reading_error)
+OSTREAM_OP(internet_overflow_flag)
 
 } // namespace cool_protocols::ip
 
@@ -300,7 +301,9 @@ TEST_F(IpTest, OptionsReader_CantEatLength) {
   const std::array options_to_test{option::k_security,
                                    option::k_loose_source_routing,
                                    option::k_strict_source_routing,
-                                   option::k_record_route, option::k_stream_id};
+                                   option::k_record_route,
+                                   option::k_stream_id,
+                                   option::k_internet_timestamp};
 
   for (const auto &to_test : options_to_test) {
 
@@ -853,6 +856,8 @@ TEST_F(IpTest, OptionsReader_StreamId) {
 
 TEST_F(IpTest, OptionsReader_TooSmallLength) {
 
+  // Test with length too small for a valid length of given option
+
   struct TestValues {
     option::option_type m_type;
     std::uint8_t m_min_length = 0;
@@ -865,7 +870,11 @@ TEST_F(IpTest, OptionsReader_TooSmallLength) {
       TestValues{option::k_stream_id, 0, option::k_stream_id_length,
                  option_reading_error::malformed_stream_id_length},
       TestValues{option::k_security, 0, option::k_security_length,
-                 option_reading_error::malformed_security_length}};
+                 option_reading_error::malformed_security_length},
+      TestValues{option::k_internet_timestamp, 0,
+                 option::k_min_internet_timestamp_length,
+                 option_reading_error::malformed_internet_timestamp_length},
+  };
 
   for (const auto &test_value : test_values) {
     for (std::uint8_t length = test_value.m_min_length;
@@ -914,9 +923,12 @@ TEST_F(IpTest, OptionsReader_TooSmallLength) {
 
 TEST_F(IpTest, OptionsReader_MalformedLength_NoEnoughDataToOmit) {
 
+  // Test case where length indicates more data than it's available in the
+  // options buffer
+
   struct TestValues {
     option::option_type m_type;
-    std::uint8_t m_valid_length = 0;
+    std::optional<std::uint8_t> m_valid_length;
     option_reading_error m_malformed_length_error =
         option_reading_error::no_enough_data;
   };
@@ -925,7 +937,10 @@ TEST_F(IpTest, OptionsReader_MalformedLength_NoEnoughDataToOmit) {
       TestValues{option::k_stream_id, option::k_stream_id_length,
                  option_reading_error::malformed_stream_id_length},
       TestValues{option::k_security, option::k_security_length,
-                 option_reading_error::malformed_security_length}};
+                 option_reading_error::malformed_security_length},
+      TestValues{option::k_internet_timestamp, std::nullopt,
+                 option_reading_error::no_enough_data},
+  };
 
   const std::uint8_t max_option_octets = 10;
 
@@ -1061,6 +1076,93 @@ TEST_F(IpTest, OptionsReader_MalformedLength_CanOmit) {
     }
     EXPECT_FALSE(reader.possibly_has_options());
   }
+}
+
+TEST_F(IpTest, OptionsReader_InternetTimestamp_MinLength) {
+
+  auto header = make_default_header();
+
+  // No-op
+  header.m_options[0] = option::k_internet_timestamp.to_uint8();
+  header.m_options[1] = option::k_min_internet_timestamp_length;
+  header.m_options[2] = 5; // Pointer
+  header.m_options[3] = 0; // Overflow/flags
+
+  header.m_version_and_length.m_internet_header_length += 1;
+
+  write_header(header);
+
+  const auto got_header = read_internet_header(m_buffer);
+  ASSERT_TRUE(got_header.has_value());
+
+  options_reader reader{got_header.value()};
+
+  ASSERT_TRUE(reader.possibly_has_options());
+  const auto got_option = reader.try_read_next();
+  ASSERT_TRUE(got_option.has_value());
+  ASSERT_EQ(got_option.value().m_type, option::k_internet_timestamp);
+
+  const auto got_decoded =
+      options_reader::decode_internet_timestamp(got_option.value().m_data);
+  ASSERT_TRUE(got_decoded.has_value());
+  EXPECT_EQ(got_decoded.value().m_pointer, 5);
+  EXPECT_EQ(got_decoded.value().m_overflow_and_flags.get_overflow(), 0);
+  EXPECT_EQ(got_decoded.value().m_overflow_and_flags.get_flags(),
+            internet_overflow_flag::timestamp_only);
+  EXPECT_TRUE(got_decoded.value().m_data.empty());
+
+  EXPECT_FALSE(reader.possibly_has_options());
+}
+
+TEST_F(IpTest, OptionsReader_InternetTimestamp_SomeData) {
+
+  auto header = make_default_header();
+
+  // No-op
+  header.m_options[0] = option::k_internet_timestamp.to_uint8();
+  header.m_options[1] = option::k_min_internet_timestamp_length + 4;
+  header.m_options[2] = 5; // Pointer
+
+  internet_timestamp_overflow_flags overflow_flags;
+  overflow_flags.set_overflow(6);
+  overflow_flags.set_flags(internet_overflow_flag::address_is_prespecified);
+
+  header.m_options[3] = overflow_flags.m_value;
+
+  // Data
+  header.m_options[4] = 'a';
+  header.m_options[5] = 'b';
+  header.m_options[6] = 'c';
+  header.m_options[7] = 'd';
+
+  header.m_version_and_length.m_internet_header_length += 2;
+
+  write_header(header);
+
+  const auto got_header = read_internet_header(m_buffer);
+  ASSERT_TRUE(got_header.has_value());
+
+  options_reader reader{got_header.value()};
+
+  ASSERT_TRUE(reader.possibly_has_options());
+  const auto got_option = reader.try_read_next();
+  ASSERT_TRUE(got_option.has_value());
+  ASSERT_EQ(got_option.value().m_type, option::k_internet_timestamp);
+
+  const auto got_decoded =
+      options_reader::decode_internet_timestamp(got_option.value().m_data);
+  ASSERT_TRUE(got_decoded.has_value());
+  EXPECT_EQ(got_decoded.value().m_pointer, 5);
+  EXPECT_EQ(got_decoded.value().m_overflow_and_flags.get_overflow(), 6);
+  EXPECT_EQ(got_decoded.value().m_overflow_and_flags.get_flags(),
+            internet_overflow_flag::address_is_prespecified);
+  ASSERT_EQ(got_decoded.value().m_data.size(), 4);
+  EXPECT_EQ(got_decoded.value().m_data[0], 'a');
+  EXPECT_EQ(got_decoded.value().m_data[1], 'b');
+  EXPECT_EQ(got_decoded.value().m_data[2], 'c');
+  EXPECT_EQ(got_decoded.value().m_data[3], 'd');
+
+  EXPECT_FALSE(reader.possibly_has_options());
 }
 
 } // namespace cool_protocols::ip::test
