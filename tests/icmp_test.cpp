@@ -109,6 +109,51 @@ TEST_F(IcmpTest, ChecksumCalculation) {
           "000000000001000207cd7d6500000000208e04000000000010111213141516171819"
           "1a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637")),
       0x9769);
+
+  {
+    const auto bin = hex_str_to_bin(
+        "08000bd00001000106cd7d6500000000a528040000000000101112131415161718191a"
+        "1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637");
+    auto msg = read_echo_message_no_ntoh(bin);
+    ASSERT_TRUE(msg.has_value());
+    const auto checksum = util::ntohs(msg->m_message.m_checksum);
+    msg->m_message.m_checksum = 0;
+    const auto got_checksum = calc_checksum(msg->m_message, msg->m_data);
+    EXPECT_EQ(checksum, got_checksum);
+  }
+  {
+    const auto bin = hex_str_to_bin(
+        "000013d00001000106cd7d6500000000a528040000000000101112131415161718191a"
+        "1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637");
+    auto msg = read_echo_message_no_ntoh(bin);
+    ASSERT_TRUE(msg.has_value());
+    const auto checksum = util::ntohs(msg->m_message.m_checksum);
+    msg->m_message.m_checksum = 0;
+    const auto got_checksum = calc_checksum(msg->m_message, msg->m_data);
+    EXPECT_EQ(checksum, got_checksum);
+  }
+  {
+    const auto bin = hex_str_to_bin(
+        "08008f690001000207cd7d6500000000208e040000000000101112131415161718191a"
+        "1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637");
+    auto msg = read_echo_message_no_ntoh(bin);
+    ASSERT_TRUE(msg.has_value());
+    const auto checksum = util::ntohs(msg->m_message.m_checksum);
+    msg->m_message.m_checksum = 0;
+    const auto got_checksum = calc_checksum(msg->m_message, msg->m_data);
+    EXPECT_EQ(checksum, got_checksum);
+  }
+  {
+    const auto bin = hex_str_to_bin(
+        "000097690001000207cd7d6500000000208e040000000000101112131415161718191a"
+        "1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637");
+    auto msg = read_echo_message_no_ntoh(bin);
+    ASSERT_TRUE(msg.has_value());
+    const auto checksum = util::ntohs(msg->m_message.m_checksum);
+    msg->m_message.m_checksum = 0;
+    const auto got_checksum = calc_checksum(msg->m_message, msg->m_data);
+    EXPECT_EQ(checksum, got_checksum);
+  }
 }
 
 } // namespace cool_protocols::icmp::test
