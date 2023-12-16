@@ -89,26 +89,26 @@ TEST_F(IcmpTest, EchoReply_Endianess) {
 }
 
 TEST_F(IcmpTest, ChecksumCalculation) {
-  // const auto hex =
-  //     "080000000001000207CD7D6500000000208E040000000000101112131415161718191A1B"
-  //     "1C1D1E1F202122232425262728292A2B2C2D2E2F3031323334353637";
-
-  // const auto hex =
-  //     "080000000001000106cd7d6500000000a528040000000000101112131415161718191a1b"
-  //     "1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637";
-
-  std::array<std::uint8_t, 64> bin{
-      0x08, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x06, 0xcd, 0x7d,
-      0x65, 0x00, 0x00, 0x00, 0x00, 0xa5, 0x28, 0x04, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
-      0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23,
-      0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e,
-      0x2f, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37};
-
-  // const std::vector<std::uint8_t> bin = hex_str_to_bin(hex);
-
-  // EXPECT_EQ(calc_checksum(bin), 0x8f69);
-  EXPECT_EQ(calc_checksum(bin), 0x0bd0);
+  EXPECT_EQ(
+      calc_checksum(hex_str_to_bin(
+          "080000000001000207CD7D6500000000208E04000000000010111213141516171819"
+          "1A1B1C1D1E1F202122232425262728292A2B2C2D2E2F3031323334353637")),
+      0x8f69);
+  EXPECT_EQ(calc_checksum(hex_str_to_bin(
+                "080000000001000106cd7d6500000000a52804000000000010111213141516"
+                "1718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435"
+                "3637")),
+            0x0bd0);
+  EXPECT_EQ(
+      calc_checksum(hex_str_to_bin(
+          "000000000001000106cd7d6500000000a52804000000000010111213141516171819"
+          "1a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637")),
+      0x13d0);
+  EXPECT_EQ(
+      calc_checksum(hex_str_to_bin(
+          "000000000001000207cd7d6500000000208e04000000000010111213141516171819"
+          "1a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637")),
+      0x9769);
 }
 
 } // namespace cool_protocols::icmp::test

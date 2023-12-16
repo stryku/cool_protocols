@@ -50,11 +50,10 @@ inline std::uint16_t calc_checksum(std::span<const std::uint8_t> data) {
   for (unsigned i = 0; i < data.size(); i += sizeof(std::uint16_t)) {
     std::uint16_t ui;
     std::memcpy(&ui, &data[i], sizeof(std::uint16_t));
-    ui = util::ntohs(ui);
     checksum += ui;
     add_overflow();
   }
-  //   checksum = util::ntohs(checksum);
+  checksum = util::ntohs(checksum);
 
   if (data.size() % 2 == 1) {
     const std::uint16_t ui = ((std::uint16_t)data.back()) << 8;
