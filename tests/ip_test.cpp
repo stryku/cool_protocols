@@ -84,6 +84,57 @@ TEST_F(IpTest, Header_VersionAndLength) {
   EXPECT_EQ(header.m_version_and_length.m_value, 0x78);
 }
 
+TEST_F(IpTest, Header_TypeOfService) {
+  internet_header header;
+
+  EXPECT_EQ(header.m_type_of_service.precedence(), 0);
+  EXPECT_EQ(header.m_type_of_service.delay(), 0);
+  EXPECT_EQ(header.m_type_of_service.throughput(), 0);
+  EXPECT_EQ(header.m_type_of_service.reliability(), 0);
+  EXPECT_EQ(header.m_type_of_service.reserved(), 0);
+  EXPECT_EQ(header.m_type_of_service.m_value, 0);
+
+  header.m_type_of_service.set_precedence(0b101);
+  EXPECT_EQ(header.m_type_of_service.precedence(), 0b101);
+  EXPECT_EQ(header.m_type_of_service.delay(), 0);
+  EXPECT_EQ(header.m_type_of_service.throughput(), 0);
+  EXPECT_EQ(header.m_type_of_service.reliability(), 0);
+  EXPECT_EQ(header.m_type_of_service.reserved(), 0);
+  EXPECT_EQ(header.m_type_of_service.m_value, 0b1010'0000);
+
+  header.m_type_of_service.set_delay(1);
+  EXPECT_EQ(header.m_type_of_service.precedence(), 0b101);
+  EXPECT_EQ(header.m_type_of_service.delay(), 1);
+  EXPECT_EQ(header.m_type_of_service.throughput(), 0);
+  EXPECT_EQ(header.m_type_of_service.reliability(), 0);
+  EXPECT_EQ(header.m_type_of_service.reserved(), 0);
+  EXPECT_EQ(header.m_type_of_service.m_value, 0b1011'0000);
+
+  header.m_type_of_service.set_throughput(1);
+  EXPECT_EQ(header.m_type_of_service.precedence(), 0b101);
+  EXPECT_EQ(header.m_type_of_service.delay(), 1);
+  EXPECT_EQ(header.m_type_of_service.throughput(), 1);
+  EXPECT_EQ(header.m_type_of_service.reliability(), 0);
+  EXPECT_EQ(header.m_type_of_service.reserved(), 0);
+  EXPECT_EQ(header.m_type_of_service.m_value, 0b1011'1000);
+
+  header.m_type_of_service.set_reliability(1);
+  EXPECT_EQ(header.m_type_of_service.precedence(), 0b101);
+  EXPECT_EQ(header.m_type_of_service.delay(), 1);
+  EXPECT_EQ(header.m_type_of_service.throughput(), 1);
+  EXPECT_EQ(header.m_type_of_service.reliability(), 1);
+  EXPECT_EQ(header.m_type_of_service.reserved(), 0);
+  EXPECT_EQ(header.m_type_of_service.m_value, 0b1011'1100);
+
+  header.m_type_of_service.set_reserved(0b01);
+  EXPECT_EQ(header.m_type_of_service.precedence(), 0b101);
+  EXPECT_EQ(header.m_type_of_service.delay(), 1);
+  EXPECT_EQ(header.m_type_of_service.throughput(), 1);
+  EXPECT_EQ(header.m_type_of_service.reliability(), 1);
+  EXPECT_EQ(header.m_type_of_service.reserved(), 0b01);
+  EXPECT_EQ(header.m_type_of_service.m_value, 0b1011'1101);
+}
+
 TEST_F(IpTest, ReadInternetHeader_Basic) {
   const auto got_header = read_internet_header(m_buffer);
   ASSERT_TRUE(got_header.has_value());

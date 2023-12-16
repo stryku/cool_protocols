@@ -150,20 +150,65 @@ struct internet_header {
       return m_value >> 5u;
     }
 
+    constexpr std::uint8_t without_precedence() const {
+      return m_value & 0x3f;
+    }
+
+    constexpr void set_precedence(std::uint8_t to_set) {
+      assert(to_set <= 0x7);
+      m_value = ((to_set & 0x07) << 5) | without_precedence();
+    }
+
     constexpr std::uint8_t delay() const {
       return (m_value & 0b0001'0000) >> 4;
+    }
+
+    constexpr std::uint8_t without_delay() const {
+      return m_value & 0b1110'1111;
+    }
+
+    constexpr void set_delay(std::uint8_t to_set) {
+      assert(to_set <= 1);
+      m_value = ((to_set & 0x1) << 4) | without_delay();
     }
 
     constexpr std::uint8_t throughput() const {
       return (m_value & 0b0000'1000) >> 3;
     }
 
+    constexpr std::uint8_t without_throughput() const {
+      return m_value & 0b1111'0111;
+    }
+
+    constexpr void set_throughput(std::uint8_t to_set) {
+      assert(to_set <= 1);
+      m_value = ((to_set & 0x1) << 3) | without_throughput();
+    }
+
     constexpr std::uint8_t reliability() const {
       return (m_value & 0b0000'0100) >> 2;
     }
 
+    constexpr std::uint8_t without_reliability() const {
+      return m_value & 0b1111'1011;
+    }
+
+    constexpr void set_reliability(std::uint8_t to_set) {
+      assert(to_set <= 1);
+      m_value = ((to_set & 0x1) << 2) | without_reliability();
+    }
+
     constexpr std::uint8_t reserved() const {
       return m_value & 0b0000'0011;
+    }
+
+    constexpr std::uint8_t without_reserved() const {
+      return m_value & 0b1111'1100;
+    }
+
+    constexpr void set_reserved(std::uint8_t to_set) {
+      assert(to_set <= 0b11);
+      m_value = (to_set & 0b11) | without_reserved();
     }
 
     constexpr bool operator==(const type_of_service &) const = default;
