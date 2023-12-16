@@ -159,31 +159,43 @@ TEST_F(IpTest, ReadInternetHeader_Basic) {
   EXPECT_EQ(got_header.value(), make_default_header());
 }
 
-TEST_F(IpTest, ReadInternetHeader_BasicRandomValues) {
+TEST_F(IpTest, ReadInternetHeader_Endianess) {
 
-  internet_header header{.m_version_and_length = {.m_value = 0},
-                         .m_type_of_service = {.m_value = 0},
-                         .m_total_length = 4242,
-                         .m_identification = 5222,
-                         .m_protocol = 129,
-                         .m_header_checksum = 31233,
-                         .m_source_address = 0xaabbccdd,
-                         .m_destination_address = 0x00112233,
-                         .m_options = {1, 2, 3, 4, 5, 6, 7, 8}};
+  // clang-format off
+  const std::array<std::uint8_t, k_min_valid_internet_header_length * 4>
+      binary_header{
+        0x15, 0x23, 0x34, 0x45,
+        0x56, 0x67, 0x78, 0x89,
+        0x90, 0x0a, 0xab, 0xbc,
+        0xcd, 0xde, 0xef, 0xf1,
+        0x1a, 0x2b, 0x3c, 0x4d
+      };
+  // clang-format on
 
-  header.m_version_and_length.set_version(0);
-  header.m_version_and_length.set_internet_header_length(7);
-  header.m_type_of_service.set_precedence(3);
-  header.m_type_of_service.set_delay(1);
-  header.m_type_of_service.set_throughput(1);
-  header.m_type_of_service.set_reliability(1);
-  header.m_type_of_service.set_reserved(3);
+  const auto header = read_internet_header(binary_header);
+  ASSERT_TRUE(header.has_value());
 
-  write_header(header);
+  EXPECT_EQ(header->m_version_and_length.version(), 0x1);
+  EXPECT_EQ(header->m_version_and_length.internet_header_length(), 0x5);
 
-  const auto got_header = read_internet_header(m_buffer);
-  ASSERT_TRUE(got_header.has_value());
-  EXPECT_EQ(got_header.value(), header);
+  EXPECT_EQ(header->m_type_of_service.precedence(), 0x1);
+  EXPECT_EQ(header->m_type_of_service.delay(), 0);
+  EXPECT_EQ(header->m_type_of_service.throughput(), 0);
+  EXPECT_EQ(header->m_type_of_service.reliability(), 0);
+  EXPECT_EQ(header->m_type_of_service.reserved(), 0x3);
+
+  EXPECT_EQ(header->m_total_length, 0x3445);
+
+  EXPECT_EQ(header->m_identification, 0x5667);
+
+  EXPECT_EQ(header->m_flags_and_offset.flags(), 0x3);
+  EXPECT_EQ(header->m_flags_and_offset.fragment_offset(), 0x1889);
+
+  EXPECT_EQ(header->m_time_to_live, 0x90);
+  EXPECT_EQ(header->m_protocol, 0x0a);
+  EXPECT_EQ(header->m_header_checksum, 0xabbc);
+  EXPECT_EQ(header->m_source_address, 0xcddeeff1);
+  EXPECT_EQ(header->m_destination_address, 0x1a2b3c4d);
 }
 
 TEST_F(IpTest, ReadInternetHeader_BufferEmpty) {
@@ -1280,38 +1292,6 @@ TEST_F(IpTest, OptionsReader_InternetTimestamp_SomeData) {
   EXPECT_EQ(got_decoded.value().m_data[3], 'd');
 
   EXPECT_FALSE(reader.possibly_has_options());
-}
-
-TEST_F(IpTest, Endianess) {
-
-  const std::array<std::uint8_t, k_min_valid_internet_header_length * 4>
-      binary_header{0x15, 0x23, 0x34, 0x45, 0x56, 0x67, 0x78, 0x89, 0x90, 0x0a,
-                    0xab, 0xbc, 0xcd, 0xde, 0xef, 0xf1, 0x1a, 0x2b, 0x3c, 0x4d};
-
-  const auto header = read_internet_header(binary_header);
-  ASSERT_TRUE(header.has_value());
-
-  EXPECT_EQ(header->m_version_and_length.version(), 0x1);
-  EXPECT_EQ(header->m_version_and_length.internet_header_length(), 0x5);
-
-  EXPECT_EQ(header->m_type_of_service.precedence(), 0x1);
-  EXPECT_EQ(header->m_type_of_service.delay(), 0);
-  EXPECT_EQ(header->m_type_of_service.throughput(), 0);
-  EXPECT_EQ(header->m_type_of_service.reliability(), 0);
-  EXPECT_EQ(header->m_type_of_service.reserved(), 0x3);
-
-  EXPECT_EQ(header->m_total_length, 0x3445);
-
-  EXPECT_EQ(header->m_identification, 0x5667);
-
-  EXPECT_EQ(header->m_flags_and_offset.flags(), 0x3);
-  EXPECT_EQ(header->m_flags_and_offset.fragment_offset(), 0x18);
-
-  EXPECT_EQ(header->m_time_to_live, 0x90);
-  EXPECT_EQ(header->m_protocol, 0x0a);
-  EXPECT_EQ(header->m_header_checksum, 0xabbc);
-  EXPECT_EQ(header->m_source_address, 0xcddeeff1);
-  EXPECT_EQ(header->m_destination_address, 0x1a2b3c4d);
 }
 
 } // namespace cool_protocols::ip::test

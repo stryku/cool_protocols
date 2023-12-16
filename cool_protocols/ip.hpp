@@ -1,6 +1,7 @@
 #pragma once
 
-#include <__expected/unexpect.h>
+#include "utils.hpp"
+
 #include <fmt/format.h>
 
 #include <cassert>
@@ -292,6 +293,14 @@ read_internet_header(std::span<const std::uint8_t> buffer) {
   internet_header header;
   std::memcpy(&header, buffer.data(),
               version_and_length.internet_header_length() * 4);
+
+  header.m_total_length = util::ntohs(header.m_total_length);
+  header.m_identification = util::ntohs(header.m_identification);
+  header.m_flags_and_offset.m_value =
+      util::ntohs(header.m_flags_and_offset.m_value);
+  header.m_header_checksum = util::ntohs(header.m_header_checksum);
+  header.m_source_address = util::ntohl(header.m_source_address);
+  header.m_destination_address = util::ntohl(header.m_destination_address);
 
   return header;
 }
