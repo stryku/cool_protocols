@@ -135,6 +135,24 @@ TEST_F(IpTest, Header_TypeOfService) {
   EXPECT_EQ(header.m_type_of_service.m_value, 0b1011'1101);
 }
 
+TEST_F(IpTest, Header_FlagsAndOffset) {
+  internet_header header;
+
+  EXPECT_EQ(header.m_flags_and_offset.flags(), 0);
+  EXPECT_EQ(header.m_flags_and_offset.fragment_offset(), 0);
+  EXPECT_EQ(header.m_flags_and_offset.m_value, 0);
+
+  header.m_flags_and_offset.set_flags(0b101);
+  EXPECT_EQ(header.m_flags_and_offset.flags(), 0b101);
+  EXPECT_EQ(header.m_flags_and_offset.fragment_offset(), 0);
+  EXPECT_EQ(header.m_flags_and_offset.m_value, 0b1010'0000'0000'0000);
+
+  header.m_flags_and_offset.set_fragment_offset(0b1'0001'0010'0100);
+  EXPECT_EQ(header.m_flags_and_offset.flags(), 0b101);
+  EXPECT_EQ(header.m_flags_and_offset.fragment_offset(), 0b1'0001'0010'0100);
+  EXPECT_EQ(header.m_flags_and_offset.m_value, 0b1011'0001'0010'0100);
+}
+
 TEST_F(IpTest, ReadInternetHeader_Basic) {
   const auto got_header = read_internet_header(m_buffer);
   ASSERT_TRUE(got_header.has_value());

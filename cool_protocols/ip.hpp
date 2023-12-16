@@ -227,8 +227,26 @@ struct internet_header {
       return m_value >> 13u;
     }
 
+    constexpr std::uint16_t without_flags() const {
+      return fragment_offset();
+    }
+
+    constexpr void set_flags(std::uint8_t to_set) {
+      assert(to_set <= 0b111);
+      m_value = ((std::uint16_t)(to_set & 0b111) << 13) | without_flags();
+    }
+
     constexpr std::uint16_t fragment_offset() const {
       return m_value & 0x1f'ff;
+    }
+
+    constexpr std::uint16_t without_fragment_offset() const {
+      return m_value & 0xe0'00;
+    }
+
+    constexpr void set_fragment_offset(std::uint16_t to_set) {
+      assert(to_set <= 0x1f'ff);
+      m_value = ((to_set & 0x1f'ff)) | without_fragment_offset();
     }
 
     constexpr bool operator==(const flags_and_offset &) const = default;
