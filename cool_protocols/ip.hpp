@@ -58,20 +58,6 @@ struct option_type {
 
 static_assert(sizeof(option_type) == 1);
 
-namespace detail {
-
-inline constexpr bool can_memcpy_option_type() {
-  option_type type;
-  type.m_copied = 1;
-  type.m_class = 1;
-  type.m_number = 8;
-
-  const std::uint8_t expected = 0b10101000;
-  return std::bit_cast<std::uint8_t>(type) == expected;
-};
-
-} // namespace detail
-
 constexpr option_type k_end_of_list{};
 constexpr option_type k_no_operation{copied::not_copied, classes::control,
                                      number::no_operation};
@@ -134,17 +120,97 @@ constexpr std::uint8_t k_more_fragments = 1;
 struct internet_header {
 
   struct version_and_length {
-    std::uint8_t m_version : 4 = 0;
-    std::uint8_t m_internet_header_length : 4 = 0;
+    std::uint8_t m_value = 0;
+
+    constexpr std::uint8_t version() const {
+      return m_value >> 4u;
+    }
+
+    constexpr void set_version(std::uint8_t to_set) {
+      assert(to_set <= 0xf);
+      m_value = ((to_set & 0x0f) << 4) | internet_header_length();
+    }
+
+    constexpr std::uint8_t internet_header_length() const {
+      return m_value & 0x0f;
+    }
+
+    constexpr void set_internet_header_length(std::uint8_t to_set) {
+      assert(to_set <= 0xf);
+      m_value = (to_set & 0x0f) | (version() << 4);
+    }
+
     constexpr bool operator==(const version_and_length &) const = default;
   } __attribute__((packed)) m_version_and_length;
 
   struct type_of_service {
-    std::uint8_t m_precedence : 3 = 0;
-    std::uint8_t m_delay : 1 = 0;
-    std::uint8_t m_throughput : 1 = 0;
-    std::uint8_t m_reliability : 1 = 0;
-    std::uint8_t m_reserved : 2 = 0;
+    std::uint8_t m_value = 0;
+
+    constexpr std::uint8_t precedence() const {
+      return m_value >> 5u;
+    }
+
+    constexpr std::uint8_t without_precedence() const {
+      return m_value & 0x3f;
+    }
+
+    constexpr void set_precedence(std::uint8_t to_set) {
+      assert(to_set <= 0x7);
+      m_value = ((to_set & 0x07) << 5) | without_precedence();
+    }
+
+    constexpr std::uint8_t delay() const {
+      return (m_value & 0b0001'0000) >> 4;
+    }
+
+    constexpr std::uint8_t without_delay() const {
+      return m_value & 0b1110'1111;
+    }
+
+    constexpr void set_delay(std::uint8_t to_set) {
+      assert(to_set <= 1);
+      m_value = ((to_set & 0x1) << 4) | without_delay();
+    }
+
+    constexpr std::uint8_t throughput() const {
+      return (m_value & 0b0000'1000) >> 3;
+    }
+
+    constexpr std::uint8_t without_throughput() const {
+      return m_value & 0b1111'0111;
+    }
+
+    constexpr void set_throughput(std::uint8_t to_set) {
+      assert(to_set <= 1);
+      m_value = ((to_set & 0x1) << 3) | without_throughput();
+    }
+
+    constexpr std::uint8_t reliability() const {
+      return (m_value & 0b0000'0100) >> 2;
+    }
+
+    constexpr std::uint8_t without_reliability() const {
+      return m_value & 0b1111'1011;
+    }
+
+    constexpr void set_reliability(std::uint8_t to_set) {
+      assert(to_set <= 1);
+      m_value = ((to_set & 0x1) << 2) | without_reliability();
+    }
+
+    constexpr std::uint8_t reserved() const {
+      return m_value & 0b0000'0011;
+    }
+
+    constexpr std::uint8_t without_reserved() const {
+      return m_value & 0b1111'1100;
+    }
+
+    constexpr void set_reserved(std::uint8_t to_set) {
+      assert(to_set <= 0b11);
+      m_value = (to_set & 0b11) | without_reserved();
+    }
+
     constexpr bool operator==(const type_of_service &) const = default;
 
   } __attribute__((packed)) m_type_of_service;
@@ -152,8 +218,40 @@ struct internet_header {
   std::uint16_t m_total_length = 0;
 
   std::uint16_t m_identification = 0;
-  std::uint8_t m_flags : 3 = 0;
-  std::uint16_t m_fragment_offset : 13 = 0;
+
+  struct flags_and_offset {
+
+    std::uint16_t m_value = 0;
+
+    constexpr std::uint8_t flags() const {
+      return m_value >> 13u;
+    }
+
+    constexpr std::uint16_t without_flags() const {
+      return fragment_offset();
+    }
+
+    constexpr void set_flags(std::uint8_t to_set) {
+      assert(to_set <= 0b111);
+      m_value = ((std::uint16_t)(to_set & 0b111) << 13) | without_flags();
+    }
+
+    constexpr std::uint16_t fragment_offset() const {
+      return m_value & 0x1f'ff;
+    }
+
+    constexpr std::uint16_t without_fragment_offset() const {
+      return m_value & 0xe0'00;
+    }
+
+    constexpr void set_fragment_offset(std::uint16_t to_set) {
+      assert(to_set <= 0x1f'ff);
+      m_value = ((to_set & 0x1f'ff)) | without_fragment_offset();
+    }
+
+    constexpr bool operator==(const flags_and_offset &) const = default;
+
+  } __attribute__((packed)) m_flags_and_offset;
 
   std::uint8_t m_time_to_live = 0;
   std::uint8_t m_protocol = 0;
@@ -180,25 +278,20 @@ read_internet_header(std::span<const std::uint8_t> buffer) {
       *reinterpret_cast<const internet_header::version_and_length *>(
           buffer.data());
 
-  if (version_and_length.m_internet_header_length <
+  if (version_and_length.internet_header_length() <
           k_min_valid_internet_header_length ||
-      version_and_length.m_internet_header_length >
+      version_and_length.internet_header_length() >
           k_max_valid_internet_header_length) {
     return std::unexpected{internet_header_reading_error::malformed_length};
   }
 
-  if (buffer.size() < version_and_length.m_internet_header_length) {
+  if (buffer.size() < version_and_length.internet_header_length()) {
     return std::unexpected{internet_header_reading_error::no_enough_data};
   }
 
   internet_header header;
-  if (option::detail::can_memcpy_option_type()) {
-    std::memcpy(&header, buffer.data(),
-                version_and_length.m_internet_header_length * 4);
-  } else {
-    // TODO implement
-    throw std::runtime_error("Not implemented");
-  }
+  std::memcpy(&header, buffer.data(),
+              version_and_length.internet_header_length() * 4);
 
   return header;
 }
@@ -284,7 +377,7 @@ class options_reader {
 public:
   options_reader(const internet_header &header) {
     const auto option_bytes =
-        header.m_version_and_length.m_internet_header_length * 4u -
+        header.m_version_and_length.internet_header_length() * 4u -
         k_internet_header_length_without_options;
 
     if (option_bytes > 0) {

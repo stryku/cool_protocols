@@ -48,9 +48,9 @@ public:
 
   constexpr internet_header make_default_header() const {
     internet_header header;
-    header.m_version_and_length.m_version = 4;
-    header.m_version_and_length.m_internet_header_length =
-        (std::uint8_t)k_min_valid_internet_header_length;
+    header.m_version_and_length.set_version(4);
+    header.m_version_and_length.set_internet_header_length(
+        (std::uint8_t)k_min_valid_internet_header_length);
 
     return header;
   }
@@ -59,11 +59,98 @@ public:
     std::memcpy(m_buffer.data(), &header, sizeof(header));
   }
 
-  std::vector<std::byte> m_buffer;
+  std::vector<std::uint8_t> m_buffer;
 };
 
 TEST_F(IpTest, Sizeof) {
   EXPECT_EQ(sizeof(internet_header), 60);
+}
+
+TEST_F(IpTest, Header_VersionAndLength) {
+  internet_header header;
+
+  EXPECT_EQ(header.m_version_and_length.version(), 0);
+  EXPECT_EQ(header.m_version_and_length.internet_header_length(), 0);
+  EXPECT_EQ(header.m_version_and_length.m_value, 0);
+
+  header.m_version_and_length.set_version(0x7);
+  EXPECT_EQ(header.m_version_and_length.version(), 0x7);
+  EXPECT_EQ(header.m_version_and_length.internet_header_length(), 0);
+
+  header.m_version_and_length.set_internet_header_length(0x8);
+  EXPECT_EQ(header.m_version_and_length.version(), 0x7);
+  EXPECT_EQ(header.m_version_and_length.internet_header_length(), 0x8);
+
+  EXPECT_EQ(header.m_version_and_length.m_value, 0x78);
+}
+
+TEST_F(IpTest, Header_TypeOfService) {
+  internet_header header;
+
+  EXPECT_EQ(header.m_type_of_service.precedence(), 0);
+  EXPECT_EQ(header.m_type_of_service.delay(), 0);
+  EXPECT_EQ(header.m_type_of_service.throughput(), 0);
+  EXPECT_EQ(header.m_type_of_service.reliability(), 0);
+  EXPECT_EQ(header.m_type_of_service.reserved(), 0);
+  EXPECT_EQ(header.m_type_of_service.m_value, 0);
+
+  header.m_type_of_service.set_precedence(0b101);
+  EXPECT_EQ(header.m_type_of_service.precedence(), 0b101);
+  EXPECT_EQ(header.m_type_of_service.delay(), 0);
+  EXPECT_EQ(header.m_type_of_service.throughput(), 0);
+  EXPECT_EQ(header.m_type_of_service.reliability(), 0);
+  EXPECT_EQ(header.m_type_of_service.reserved(), 0);
+  EXPECT_EQ(header.m_type_of_service.m_value, 0b1010'0000);
+
+  header.m_type_of_service.set_delay(1);
+  EXPECT_EQ(header.m_type_of_service.precedence(), 0b101);
+  EXPECT_EQ(header.m_type_of_service.delay(), 1);
+  EXPECT_EQ(header.m_type_of_service.throughput(), 0);
+  EXPECT_EQ(header.m_type_of_service.reliability(), 0);
+  EXPECT_EQ(header.m_type_of_service.reserved(), 0);
+  EXPECT_EQ(header.m_type_of_service.m_value, 0b1011'0000);
+
+  header.m_type_of_service.set_throughput(1);
+  EXPECT_EQ(header.m_type_of_service.precedence(), 0b101);
+  EXPECT_EQ(header.m_type_of_service.delay(), 1);
+  EXPECT_EQ(header.m_type_of_service.throughput(), 1);
+  EXPECT_EQ(header.m_type_of_service.reliability(), 0);
+  EXPECT_EQ(header.m_type_of_service.reserved(), 0);
+  EXPECT_EQ(header.m_type_of_service.m_value, 0b1011'1000);
+
+  header.m_type_of_service.set_reliability(1);
+  EXPECT_EQ(header.m_type_of_service.precedence(), 0b101);
+  EXPECT_EQ(header.m_type_of_service.delay(), 1);
+  EXPECT_EQ(header.m_type_of_service.throughput(), 1);
+  EXPECT_EQ(header.m_type_of_service.reliability(), 1);
+  EXPECT_EQ(header.m_type_of_service.reserved(), 0);
+  EXPECT_EQ(header.m_type_of_service.m_value, 0b1011'1100);
+
+  header.m_type_of_service.set_reserved(0b01);
+  EXPECT_EQ(header.m_type_of_service.precedence(), 0b101);
+  EXPECT_EQ(header.m_type_of_service.delay(), 1);
+  EXPECT_EQ(header.m_type_of_service.throughput(), 1);
+  EXPECT_EQ(header.m_type_of_service.reliability(), 1);
+  EXPECT_EQ(header.m_type_of_service.reserved(), 0b01);
+  EXPECT_EQ(header.m_type_of_service.m_value, 0b1011'1101);
+}
+
+TEST_F(IpTest, Header_FlagsAndOffset) {
+  internet_header header;
+
+  EXPECT_EQ(header.m_flags_and_offset.flags(), 0);
+  EXPECT_EQ(header.m_flags_and_offset.fragment_offset(), 0);
+  EXPECT_EQ(header.m_flags_and_offset.m_value, 0);
+
+  header.m_flags_and_offset.set_flags(0b101);
+  EXPECT_EQ(header.m_flags_and_offset.flags(), 0b101);
+  EXPECT_EQ(header.m_flags_and_offset.fragment_offset(), 0);
+  EXPECT_EQ(header.m_flags_and_offset.m_value, 0b1010'0000'0000'0000);
+
+  header.m_flags_and_offset.set_fragment_offset(0b1'0001'0010'0100);
+  EXPECT_EQ(header.m_flags_and_offset.flags(), 0b101);
+  EXPECT_EQ(header.m_flags_and_offset.fragment_offset(), 0b1'0001'0010'0100);
+  EXPECT_EQ(header.m_flags_and_offset.m_value, 0b1011'0001'0010'0100);
 }
 
 TEST_F(IpTest, ReadInternetHeader_Basic) {
@@ -73,20 +160,24 @@ TEST_F(IpTest, ReadInternetHeader_Basic) {
 }
 
 TEST_F(IpTest, ReadInternetHeader_BasicRandomValues) {
-  const internet_header header{
-      .m_version_and_length = {.m_version = 0, .m_internet_header_length = 7},
-      .m_type_of_service = {.m_precedence = 3,
-                            .m_delay = 1,
-                            .m_throughput = 1,
-                            .m_reliability = 1,
-                            .m_reserved = 3},
-      .m_total_length = 4242,
-      .m_identification = 5222,
-      .m_protocol = 129,
-      .m_header_checksum = 31233,
-      .m_source_address = 0xaabbccdd,
-      .m_destination_address = 0x00112233,
-      .m_options = {1, 2, 3, 4, 5, 6, 7, 8}};
+
+  internet_header header{.m_version_and_length = {.m_value = 0},
+                         .m_type_of_service = {.m_value = 0},
+                         .m_total_length = 4242,
+                         .m_identification = 5222,
+                         .m_protocol = 129,
+                         .m_header_checksum = 31233,
+                         .m_source_address = 0xaabbccdd,
+                         .m_destination_address = 0x00112233,
+                         .m_options = {1, 2, 3, 4, 5, 6, 7, 8}};
+
+  header.m_version_and_length.set_version(0);
+  header.m_version_and_length.set_internet_header_length(7);
+  header.m_type_of_service.set_precedence(3);
+  header.m_type_of_service.set_delay(1);
+  header.m_type_of_service.set_throughput(1);
+  header.m_type_of_service.set_reliability(1);
+  header.m_type_of_service.set_reserved(3);
 
   write_header(header);
 
@@ -108,7 +199,7 @@ TEST_F(IpTest, ReadInternetHeader_MalformedLength) {
        header_length < k_min_valid_internet_header_length; ++header_length) {
 
     auto header = make_default_header();
-    header.m_version_and_length.m_internet_header_length = header_length;
+    header.m_version_and_length.set_internet_header_length(header_length);
     write_header(header);
 
     const auto got_header = read_internet_header(m_buffer);
@@ -126,7 +217,7 @@ TEST_F(IpTest, ReadInternetHeader_ValidHeaderLength) {
        header_length <= k_max_valid_internet_header_length; ++header_length) {
 
     auto header = make_default_header();
-    header.m_version_and_length.m_internet_header_length = header_length;
+    header.m_version_and_length.set_internet_header_length(header_length);
     write_header(header);
 
     const auto got_header = read_internet_header(m_buffer);
@@ -141,7 +232,7 @@ TEST_F(IpTest, ReadInternetHeader_BufferTooSmallForHeader) {
        header_length <= k_max_valid_internet_header_length; ++header_length) {
 
     auto header = make_default_header();
-    header.m_version_and_length.m_internet_header_length = header_length;
+    header.m_version_and_length.set_internet_header_length(header_length);
     write_header(header);
 
     // Make buffer too small
@@ -169,7 +260,8 @@ TEST_F(IpTest, OptionsReader_EndOfList) {
 
     // Add option
     header.m_options[0] = option::k_end_of_list.to_uint8();
-    header.m_version_and_length.m_internet_header_length += 1;
+    header.m_version_and_length.set_internet_header_length(
+        header.m_version_and_length.internet_header_length() + 1);
 
     write_header(header);
 
@@ -192,7 +284,8 @@ TEST_F(IpTest, OptionsReader_EndOfList) {
     // Add option
     header.m_options[0] = option::k_no_operation.to_uint8();
     header.m_options[1] = option::k_end_of_list.to_uint8();
-    header.m_version_and_length.m_internet_header_length += 1;
+    header.m_version_and_length.set_internet_header_length(
+        header.m_version_and_length.internet_header_length() + 1);
 
     write_header(header);
 
@@ -228,7 +321,8 @@ TEST_F(IpTest, OptionsReader_EndOfList) {
     header.m_options[1] = option::k_no_operation.to_uint8();
     header.m_options[2] = option::k_no_operation.to_uint8();
     header.m_options[3] = option::k_end_of_list.to_uint8();
-    header.m_version_and_length.m_internet_header_length += 1;
+    header.m_version_and_length.set_internet_header_length(
+        header.m_version_and_length.internet_header_length() + 1);
 
     write_header(header);
 
@@ -266,7 +360,8 @@ TEST_F(IpTest, OptionsReader_OptionsEndExactlyAtHeaderEnd_NoEndOfListOption) {
   header.m_options[1] = option::k_no_operation.to_uint8();
   header.m_options[2] = option::k_no_operation.to_uint8();
   header.m_options[3] = option::k_no_operation.to_uint8();
-  header.m_version_and_length.m_internet_header_length += 1;
+  header.m_version_and_length.set_internet_header_length(
+      header.m_version_and_length.internet_header_length() + 1);
 
   write_header(header);
 
@@ -296,7 +391,8 @@ TEST_F(IpTest, OptionsReader_CantEatLength) {
   header.m_options[1] = option::k_no_operation.to_uint8();
   header.m_options[2] = option::k_no_operation.to_uint8();
 
-  header.m_version_and_length.m_internet_header_length += 1;
+  header.m_version_and_length.set_internet_header_length(
+      header.m_version_and_length.internet_header_length() + 1);
 
   const std::array options_to_test{option::k_security,
                                    option::k_loose_source_routing,
@@ -357,7 +453,8 @@ TEST_F(IpTest, OptionsReader_Security) {
   // End of list
   header.m_options[11] = option::k_end_of_list.to_uint8();
 
-  header.m_version_and_length.m_internet_header_length += 3;
+  header.m_version_and_length.set_internet_header_length(
+      header.m_version_and_length.internet_header_length() + 3);
 
   write_header(header);
 
@@ -414,7 +511,8 @@ TEST_F(IpTest, OptionsReader_SecurityEndsExactlyAtEndOfHeader) {
   header.m_options[10] = 'T';
   header.m_options[11] = 'T';
 
-  header.m_version_and_length.m_internet_header_length += 3;
+  header.m_version_and_length.set_internet_header_length(
+      header.m_version_and_length.internet_header_length() + 3);
 
   write_header(header);
 
@@ -464,7 +562,8 @@ TEST_F(IpTest, OptionsReader_Lsrr) {
 
   header.m_options[7] = option::k_end_of_list.to_uint8();
 
-  header.m_version_and_length.m_internet_header_length += 2;
+  header.m_version_and_length.set_internet_header_length(
+      header.m_version_and_length.internet_header_length() + 2);
 
   write_header(header);
 
@@ -515,7 +614,8 @@ TEST_F(IpTest, OptionsReader_Lsrr_TooBigLength) {
   header.m_options[5] = 0x33;
   header.m_options[6] = 0x44;
 
-  header.m_version_and_length.m_internet_header_length += 2;
+  header.m_version_and_length.set_internet_header_length(
+      header.m_version_and_length.internet_header_length() + 2);
 
   write_header(header);
 
@@ -548,7 +648,8 @@ TEST_F(IpTest, OptionsReader_Lsrr_MalformedPointer) {
     header.m_options[5] = 0x33;
     header.m_options[6] = 0x44;
 
-    header.m_version_and_length.m_internet_header_length += 2;
+    header.m_version_and_length.set_internet_header_length(
+        header.m_version_and_length.internet_header_length() + 2);
 
     write_header(header);
 
@@ -589,7 +690,8 @@ TEST_F(IpTest, OptionsReader_Ssrr) {
 
   header.m_options[7] = option::k_end_of_list.to_uint8();
 
-  header.m_version_and_length.m_internet_header_length += 2;
+  header.m_version_and_length.set_internet_header_length(
+      header.m_version_and_length.internet_header_length() + 2);
 
   write_header(header);
 
@@ -640,7 +742,8 @@ TEST_F(IpTest, OptionsReader_Ssrr_TooBigLength) {
   header.m_options[5] = 0x33;
   header.m_options[6] = 0x44;
 
-  header.m_version_and_length.m_internet_header_length += 2;
+  header.m_version_and_length.set_internet_header_length(
+      header.m_version_and_length.internet_header_length() + 2);
 
   write_header(header);
 
@@ -673,7 +776,8 @@ TEST_F(IpTest, OptionsReader_Ssrr_MalformedPointer) {
     header.m_options[5] = 0x33;
     header.m_options[6] = 0x44;
 
-    header.m_version_and_length.m_internet_header_length += 2;
+    header.m_version_and_length.set_internet_header_length(
+        header.m_version_and_length.internet_header_length() + 2);
 
     write_header(header);
 
@@ -714,7 +818,8 @@ TEST_F(IpTest, OptionsReader_RecordRoute) {
 
   header.m_options[7] = option::k_end_of_list.to_uint8();
 
-  header.m_version_and_length.m_internet_header_length += 2;
+  header.m_version_and_length.set_internet_header_length(
+      header.m_version_and_length.internet_header_length() + 2);
 
   write_header(header);
 
@@ -765,7 +870,8 @@ TEST_F(IpTest, OptionsReader_RecordRouting_TooBigLength) {
   header.m_options[5] = 0x33;
   header.m_options[6] = 0x44;
 
-  header.m_version_and_length.m_internet_header_length += 2;
+  header.m_version_and_length.set_internet_header_length(
+      header.m_version_and_length.internet_header_length() + 2);
 
   write_header(header);
 
@@ -798,7 +904,8 @@ TEST_F(IpTest, OptionsReader_RecordRouting_MalformedPointer) {
     header.m_options[5] = 0x33;
     header.m_options[6] = 0x44;
 
-    header.m_version_and_length.m_internet_header_length += 2;
+    header.m_version_and_length.set_internet_header_length(
+        header.m_version_and_length.internet_header_length() + 2);
 
     write_header(header);
 
@@ -834,7 +941,8 @@ TEST_F(IpTest, OptionsReader_StreamId) {
   header.m_options[2] = 0x11;
   header.m_options[3] = 0x22;
 
-  header.m_version_and_length.m_internet_header_length += 1;
+  header.m_version_and_length.set_internet_header_length(
+      header.m_version_and_length.internet_header_length() + 1);
 
   write_header(header);
 
@@ -897,7 +1005,8 @@ TEST_F(IpTest, OptionsReader_TooSmallLength) {
         header.m_options[length] = option::k_end_of_list.to_uint8();
       }
 
-      header.m_version_and_length.m_internet_header_length += 10;
+      header.m_version_and_length.set_internet_header_length(
+          header.m_version_and_length.internet_header_length() + 10);
 
       write_header(header);
 
@@ -963,7 +1072,8 @@ TEST_F(IpTest, OptionsReader_MalformedLength_NoEnoughDataToOmit) {
       header.m_options[0] = test_value.m_type.to_uint8();
       header.m_options[1] = length;
 
-      header.m_version_and_length.m_internet_header_length += 1;
+      header.m_version_and_length.set_internet_header_length(
+          header.m_version_and_length.internet_header_length() + 1);
 
       write_header(header);
 
@@ -1026,7 +1136,9 @@ TEST_F(IpTest, OptionsReader_MalformedLength_CanOmit) {
         header.m_options[length] = option::k_end_of_list.to_uint8();
       }
 
-      header.m_version_and_length.m_internet_header_length += max_option_octets;
+      header.m_version_and_length.set_internet_header_length(
+          header.m_version_and_length.internet_header_length() +
+          max_option_octets);
 
       write_header(header);
 
@@ -1060,7 +1172,9 @@ TEST_F(IpTest, OptionsReader_MalformedLength_CanOmit) {
     header.m_options[0] = test_value.m_type.to_uint8();
     header.m_options[1] = 40;
 
-    header.m_version_and_length.m_internet_header_length += max_option_octets;
+    header.m_version_and_length.set_internet_header_length(
+        header.m_version_and_length.internet_header_length() +
+        max_option_octets);
 
     write_header(header);
 
@@ -1089,7 +1203,8 @@ TEST_F(IpTest, OptionsReader_InternetTimestamp_MinLength) {
   header.m_options[2] = 5; // Pointer
   header.m_options[3] = 0; // Overflow/flags
 
-  header.m_version_and_length.m_internet_header_length += 1;
+  header.m_version_and_length.set_internet_header_length(
+      header.m_version_and_length.internet_header_length() + 1);
 
   write_header(header);
 
@@ -1136,7 +1251,8 @@ TEST_F(IpTest, OptionsReader_InternetTimestamp_SomeData) {
   header.m_options[6] = 'c';
   header.m_options[7] = 'd';
 
-  header.m_version_and_length.m_internet_header_length += 2;
+  header.m_version_and_length.set_internet_header_length(
+      header.m_version_and_length.internet_header_length() + 2);
 
   write_header(header);
 

@@ -27,13 +27,14 @@ struct fmt::formatter<cool_protocols::ip::internet_header>
         "total-length={}, identification={}, flags={:#x}, fragment-offset={}, "
         "ttl={}, protocol={}, checksum={}, src-address={:#x}, "
         "dest-address={:#x}",
-        h.m_version_and_length.m_version,
-        h.m_version_and_length.m_internet_header_length,
-        h.m_type_of_service.m_precedence, h.m_type_of_service.m_delay,
-        h.m_type_of_service.m_throughput, h.m_type_of_service.m_reliability,
-        h.m_type_of_service.m_reserved, h.m_total_length, h.m_identification,
-        h.m_flags, h.m_fragment_offset, h.m_time_to_live, h.m_protocol,
-        h.m_header_checksum, h.m_source_address, h.m_destination_address);
+        h.m_version_and_length.version(),
+        h.m_version_and_length.internet_header_length(),
+        h.m_type_of_service.precedence(), h.m_type_of_service.delay(),
+        h.m_type_of_service.throughput(), h.m_type_of_service.reliability(),
+        h.m_type_of_service.reserved(), h.m_total_length, h.m_identification,
+        h.m_flags_and_offset.flags(), h.m_flags_and_offset.fragment_offset(),
+        h.m_time_to_live, h.m_protocol, h.m_header_checksum, h.m_source_address,
+        h.m_destination_address);
   }
 };
 
