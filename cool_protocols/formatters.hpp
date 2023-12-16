@@ -1,5 +1,6 @@
 #pragma once
 
+#include "icmp.hpp"
 #include "ip.hpp"
 
 #include <fmt/format.h>
@@ -175,9 +176,74 @@ struct fmt::formatter<cool_protocols::ip::internet_header_reading_error>
         return format_to(ctx.out(), "no_enough_data");
       case cool_protocols::ip::internet_header_reading_error::malformed_length:
         return format_to(ctx.out(), "malformed_length");
-        ;
     }
 
     return format_to(ctx.out(), "?");
+  }
+};
+
+template <>
+struct fmt::formatter<cool_protocols::icmp::message_type>
+    : cool_protocols::detail::no_parse {
+
+  constexpr auto format(const cool_protocols::icmp::message_type err,
+                        auto &ctx) {
+
+    switch (err) {
+      case cool_protocols::icmp::message_type::echo_reply:
+        return format_to(ctx.out(), "echo_reply");
+      case cool_protocols::icmp::message_type::destination_unreachable:
+        return format_to(ctx.out(), "destination_unreachable");
+      case cool_protocols::icmp::message_type::source_quench:
+        return format_to(ctx.out(), "source_quench");
+      case cool_protocols::icmp::message_type::redirect:
+        return format_to(ctx.out(), "redirect");
+      case cool_protocols::icmp::message_type::echo:
+        return format_to(ctx.out(), "echo");
+      case cool_protocols::icmp::message_type::time_exceeded:
+        return format_to(ctx.out(), "time_exceeded");
+      case cool_protocols::icmp::message_type::parameter_problem:
+        return format_to(ctx.out(), "parameter_problem");
+      case cool_protocols::icmp::message_type::timestamp:
+        return format_to(ctx.out(), "timestamp");
+      case cool_protocols::icmp::message_type::timestamp_reply:
+        return format_to(ctx.out(), "timestamp_reply");
+      case cool_protocols::icmp::message_type::information_request:
+        return format_to(ctx.out(), "information_request");
+      case cool_protocols::icmp::message_type::information_reply:
+        return format_to(ctx.out(), "information_reply");
+    }
+
+    return format_to(ctx.out(), "?");
+  }
+};
+
+template <>
+struct fmt::formatter<cool_protocols::icmp::message_reading_error>
+    : cool_protocols::detail::no_parse {
+
+  constexpr auto format(const cool_protocols::icmp::message_reading_error err,
+                        auto &ctx) {
+
+    switch (err) {
+      case cool_protocols::icmp::message_reading_error::no_enough_data:
+        return format_to(ctx.out(), "no_enough_data");
+    }
+
+    return format_to(ctx.out(), "?");
+  }
+};
+
+template <>
+struct fmt::formatter<cool_protocols::icmp::echo_message>
+    : cool_protocols::detail::no_parse {
+
+  constexpr auto format(const cool_protocols::icmp::echo_message &msg,
+                        auto &ctx) {
+    return format_to(
+        ctx.out(),
+        "type={}, code={}, checksum={}, identifier={}, seq_number={}, ",
+        msg.m_type, msg.m_code, msg.m_checksum, msg.m_identifier,
+        msg.m_seq_number);
   }
 };

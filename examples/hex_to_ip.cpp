@@ -1,5 +1,5 @@
+#include "cool_protocols/formatters.hpp"
 #include "cool_protocols/ip.hpp"
-#include "cool_protocols/ip_fmt.hpp"
 #include "fmt/core.h"
 
 #include <string_view>
