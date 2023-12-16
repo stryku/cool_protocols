@@ -2,7 +2,9 @@
 
 #include "utils.hpp"
 
+#include <array>
 #include <atomic>
+#include <bit>
 #include <cassert>
 #include <expected>
 #include <span>
@@ -32,6 +34,51 @@ struct echo_message {
   std::uint16_t m_identifier = 0;
   std::uint16_t m_seq_number = 0;
 } __attribute__((packed));
+
+inline std::uint16_t calc_checksum(std::span<const std::uint8_t> data) {
+
+  std::uint32_t checksum = 0;
+
+  const auto add_overflow = [&checksum] {
+    while (checksum & 0xff'ff'00'00) {
+      const std::uint16_t overflow = checksum >> 16;
+      checksum &= 0xff'ff;
+      checksum += overflow;
+    }
+  };
+
+  for (unsigned i = 0; i < data.size(); i += sizeof(std::uint16_t)) {
+    std::uint16_t ui;
+    std::memcpy(&ui, &data[i], sizeof(std::uint16_t));
+    ui = util::ntohs(ui);
+    checksum += ui;
+    add_overflow();
+  }
+  //   checksum = util::ntohs(checksum);
+
+  if (data.size() % 2 == 1) {
+    const std::uint16_t ui = ((std::uint16_t)data.back()) << 8;
+    checksum += ui;
+    add_overflow();
+  }
+
+  return ~checksum;
+}
+
+template <typename T>
+inline std::uint16_t calc_checksum(const T &msg,
+                                   std::span<const std::uint8_t> data) {
+
+  static_assert(sizeof(T) % 2 == 0);
+
+  using msg_array_t = std::array<const std::uint8_t, sizeof(msg)>;
+
+  const msg_array_t msg_array = std::bit_cast<msg_array_t>(msg);
+  std::uint16_t checksum = calc_checksum(msg_array);
+  checksum += calc_checksum(data);
+
+  return checksum;
+}
 
 inline message_type extract_message_type(std::span<const std::uint8_t> data) {
   assert(!data.empty());
