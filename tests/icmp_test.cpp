@@ -65,4 +65,27 @@ TEST_F(IcmpTest, Echo_Endianess) {
   EXPECT_EQ(header->m_data.size(), 4);
 }
 
+TEST_F(IcmpTest, EchoReply_Endianess) {
+
+  // clang-format off
+  const std::array<std::uint8_t, sizeof(echo_message) + 4>
+      binary_header{
+        0x15, 0x23, 0x34, 0x45,
+        0x56, 0x67, 0x78, 0x89,
+        0x90, 0x0a, 0xab, 0xbc
+      };
+  // clang-format on
+
+  const auto header = read_echo_reply_message(binary_header);
+  ASSERT_TRUE(header.has_value());
+
+  EXPECT_EQ(header->m_message.m_type, 0x15);
+  EXPECT_EQ(header->m_message.m_code, 0x23);
+  EXPECT_EQ(header->m_message.m_checksum, 0x3445);
+  EXPECT_EQ(header->m_message.m_identifier, 0x5667);
+  EXPECT_EQ(header->m_message.m_seq_number, 0x7889);
+
+  EXPECT_EQ(header->m_data.size(), 4);
+}
+
 } // namespace cool_protocols::icmp::test
