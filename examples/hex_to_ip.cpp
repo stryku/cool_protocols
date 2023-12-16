@@ -36,8 +36,7 @@ std::vector<std::uint8_t> hex_str_to_bin(std::string_view hex) {
 
 int main(int argc, const char *argv[]) {
 
-  std::string_view hex =
-      "45 00 00 1E   7E 83 00 00   FF 11 3F 49   7F 00 00 01";
+  std::string_view hex = "450000183db10000ff0180317f0000017f000001";
 
   if (argc == 2) {
     hex = argv[1];
