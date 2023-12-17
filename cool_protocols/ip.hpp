@@ -13,6 +13,8 @@
 
 namespace cool_protocols::ip {
 
+enum class protocol : std::uint8_t { icmp = 1 };
+
 namespace option {
 
 enum class copied : std::uint8_t { not_copied = 0, copied = 1 };

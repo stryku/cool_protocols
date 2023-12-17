@@ -28,49 +28,18 @@
 #define MSG_SIZE 256
 #define HEADER_SIZE (sizeof(struct iphdr) + sizeof(struct udphdr))
 
-struct raii_socket {
-  int socket = -1;
-  ~raii_socket() {
-    close(socket);
-  }
-};
-
-raii_socket create_socket(int domain, int type, int protocol) {
-
-  int raw_socket = socket(domain, type, protocol);
-
-  if (raw_socket == -1) {
-    fmt::print("socket error");
-    throw std::runtime_error("socket error");
-  }
-
-  return raii_socket{raw_socket};
-}
-
-void do_bind(int s, const char *address, std::uint16_t port) {
-
-  struct sockaddr_in sockstr;
-  socklen_t socklen;
-
-  sockstr.sin_family = AF_INET;
-  sockstr.sin_port = cool_protocols::util::htons(port);
-  sockstr.sin_addr.s_addr = inet_addr(address);
-  socklen = (socklen_t)sizeof(sockstr);
-
-  if (bind(s, (struct sockaddr *)&sockstr, socklen) == -1) {
-    perror("bind");
-    throw std::runtime_error("bind");
-  }
-}
-
 struct ping_data {
   std::chrono::time_point<std::chrono::system_clock> m_sent_at;
 } __attribute__((packed));
 
+void dump(std::span<const std::uint8_t> data) {
+  for (auto d : data) {
+    fmt::print("{:x} ", d);
+  }
+}
+
 int main(void) {
   std::array<std::uint8_t, 1024> buffer;
-
-  raii_socket sock = create_socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
 
   // Send ping
 
@@ -84,6 +53,14 @@ int main(void) {
   echo.m_identifier = 1;
   echo.m_seq_number = 1;
 
+  cool_protocols::util::detail::checksum_calculator calc;
+  calc.add(echo.m_type, echo.m_code);
+  calc.add(echo.m_identifier);
+  calc.add(echo.m_seq_number);
+  calc.add(cool_protocols::util::detail::as_bytes(data));
+
+  echo.m_checksum = calc.finalize();
+
   // Prepare IP header
   cool_protocols::ip::internet_header ip_header;
   ip_header.m_version_and_length.set_version(4);
@@ -95,15 +72,14 @@ int main(void) {
   ip_header.m_identification = 1337;
   ip_header.m_time_to_live = 255;
   ip_header.m_protocol = (std::uint8_t)cool_protocols::ip::protocol::icmp;
-  // ip_header.m_source_address =
-  //     cool_protocols::util::inet_addr("192.168.100.150");
+  ip_header.m_source_address =
+      cool_protocols::util::inet_addr("192.168.100.150");
+  ip_header.m_destination_address = cool_protocols::util::inet_addr("8.8.8.8");
+  // ip_header.m_source_address = cool_protocols::util::inet_addr("127.0.0.1");
   // ip_header.m_destination_address =
-  // cool_protocols::util::inet_addr("8.8.8.8");
-  ip_header.m_source_address = cool_protocols::util::inet_addr("127.0.0.1");
-  ip_header.m_destination_address =
-      cool_protocols::util::inet_addr("127.0.0.1");
+  //     cool_protocols::util::inet_addr("127.0.0.1");
 
-  cool_protocols::util::detail::checksum_calculator calc = {};
+  calc = {};
   calc.add(ip_header.m_version_and_length.m_value,
            ip_header.m_type_of_service.m_value);
   calc.add(ip_header.m_total_length);
@@ -128,12 +104,7 @@ int main(void) {
   // Make network order
   echo.m_identifier = cool_protocols::util::htons(echo.m_identifier);
   echo.m_seq_number = cool_protocols::util::htons(echo.m_seq_number);
-
-  calc = {};
-  calc.add(cool_protocols::util::detail::as_bytes(echo));
-  calc.add(cool_protocols::util::detail::as_bytes(data));
-
-  echo.m_checksum = calc.finalize();
+  echo.m_checksum = cool_protocols::util::htons(echo.m_checksum);
 
   ip_header.m_total_length =
       cool_protocols::util::htons(ip_header.m_total_length);
@@ -159,27 +130,29 @@ int main(void) {
   sockaddr_in addrDest;
   addrDest.sin_family = AF_INET;
   addrDest.sin_port = htons(80);
-  addrDest.sin_addr.s_addr = inet_addr("127.0.0.1");
+  addrDest.sin_addr.s_addr = inet_addr("8.8.8.8");
 
   fmt::print("Sending {} bytes\n", payload.size());
+  dump(payload);
 
-  int sent_bytes = sendto(sock.socket, payload.data(), payload.size(), 0,
-                          (struct sockaddr *)&addrDest, sizeof(sockaddr_in));
-  if (sent_bytes == -1) {
-    fmt::print("send error {}: {}\n", errno, strerror(errno));
-    return 1;
-  }
+  //   int sent_bytes = sendto(sock.socket, payload.data(), payload.size(), 0,
+  //                           (struct sockaddr *)&addrDest,
+  //                           sizeof(sockaddr_in));
+  //   if (sent_bytes == -1) {
+  //     fmt::print("send error {}: {}\n", errno, strerror(errno));
+  //     return 1;
+  //   }
 
-  // Receive pong
-  do_bind(sock.socket, ADDR_TO_BIND, 5555);
+  //   // Receive pong
+  //   do_bind(sock.socket, ADDR_TO_BIND, 5555);
 
-  int recv_bytes = recv(sock.socket, buffer.data(), buffer.size(), 0);
-  if (recv_bytes == -1) {
-    perror("recv");
-    return 1;
-  }
+  //   int recv_bytes = recv(sock.socket, buffer.data(), buffer.size(), 0);
+  //   if (recv_bytes == -1) {
+  //     perror("recv");
+  //     return 1;
+  //   }
 
-  fmt::print("Got {} bytes", recv_bytes);
+  //   fmt::print("Got {} bytes", recv_bytes);
 
   return 0;
 }

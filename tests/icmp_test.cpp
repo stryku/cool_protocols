@@ -159,6 +159,14 @@ TEST_F(IcmpTest, ChecksumCalculation) {
     const auto got_checksum = calc_checksum(msg->m_message, msg->m_data);
     EXPECT_EQ(checksum, got_checksum);
   }
+  {
+    const auto bin = hex_str_to_bin("08007eb500010001aad2e399b40c0600");
+    auto msg = read_echo_message(bin);
+    ASSERT_TRUE(msg.has_value());
+    msg->m_message->m_checksum = 0;
+    const auto got_checksum = calc_checksum(msg->m_message, msg->m_data);
+    EXPECT_EQ(got_checksum, 0xaf84);
+  }
 }
 
 } // namespace cool_protocols::icmp::test

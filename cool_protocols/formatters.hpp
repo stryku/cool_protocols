@@ -242,7 +242,7 @@ struct fmt::formatter<cool_protocols::icmp::echo_message>
                         auto &ctx) {
     return format_to(
         ctx.out(),
-        "type={}, code={}, checksum={}, identifier={}, seq_number={}, ",
+        "type={}, code={}, checksum={}, identifier={}, seq_number={}",
         msg.m_type, msg.m_code, msg.m_checksum, msg.m_identifier,
         msg.m_seq_number);
   }
