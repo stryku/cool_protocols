@@ -83,7 +83,8 @@ TEST_F(IcmpTest, EchoReply_Endianess) {
 
   EXPECT_EQ(network_header->m_data.size(), 4);
 
-  const host_order_echo_message host_header = ntoh(network_header->m_message);
+  const host_order_echo_reply_message host_header =
+      ntoh(network_header->m_message);
 
   EXPECT_EQ(host_header->m_type, 0x15);
   EXPECT_EQ(host_header->m_code, 0x23);

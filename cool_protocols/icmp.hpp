@@ -135,17 +135,31 @@ using host_order_echo_reply_message =
     util::strong_type_packed<echo_message,
                              struct _tag_network_order_echo_reply_message>;
 
-inline host_order_echo_message ntoh(const network_order_echo_message &msg) {
+namespace detail {
+
+template <typename Host, typename Network>
+inline Host ntoh_echo(const Network &msg) {
 
   static_assert(sizeof(network_order_echo_message) ==
                 sizeof(host_order_echo_message));
 
-  host_order_echo_message copy;
+  Host copy;
   std::memcpy(&copy, &msg, sizeof(network_order_echo_message));
   copy->m_checksum = util::ntohs(copy->m_checksum);
   copy->m_identifier = util::ntohs(copy->m_identifier);
   copy->m_seq_number = util::ntohs(copy->m_seq_number);
   return copy;
+}
+
+} // namespace detail
+
+inline host_order_echo_message ntoh(const network_order_echo_message &msg) {
+  return detail::ntoh_echo<host_order_echo_message>(msg);
+}
+
+inline host_order_echo_reply_message
+ntoh(const network_order_echo_reply_message &msg) {
+  return detail::ntoh_echo<host_order_echo_reply_message>(msg);
 }
 
 struct echo_message_with_data {
@@ -164,9 +178,20 @@ read_echo_message(std::span<const std::uint8_t> data) {
   return echo_message_with_data{msg, data.subspan(sizeof(echo_message))};
 }
 
-inline std::expected<echo_message_with_data, message_reading_error>
+struct echo_reply_message_with_data {
+  network_order_echo_reply_message m_message;
+  std::span<const std::uint8_t> m_data;
+};
+
+inline std::expected<echo_reply_message_with_data, message_reading_error>
 read_echo_reply_message(std::span<const std::uint8_t> data) {
-  return read_echo_message(data);
+  if (data.size() < sizeof(echo_message)) {
+    return std::unexpected{message_reading_error::no_enough_data};
+  }
+
+  network_order_echo_reply_message msg;
+  std::memcpy(&msg, data.data(), sizeof(msg));
+  return echo_reply_message_with_data{msg, data.subspan(sizeof(echo_message))};
 }
 
 } // namespace cool_protocols::icmp
