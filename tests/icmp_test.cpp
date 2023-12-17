@@ -53,16 +53,18 @@ TEST_F(IcmpTest, Echo_Endianess) {
       };
   // clang-format on
 
-  const auto header = read_echo_message(binary_header);
-  ASSERT_TRUE(header.has_value());
+  const auto network_header = read_echo_message(binary_header);
+  ASSERT_TRUE(network_header.has_value());
 
-  EXPECT_EQ(header->m_message.m_type, 0x15);
-  EXPECT_EQ(header->m_message.m_code, 0x23);
-  EXPECT_EQ(header->m_message.m_checksum, 0x3445);
-  EXPECT_EQ(header->m_message.m_identifier, 0x5667);
-  EXPECT_EQ(header->m_message.m_seq_number, 0x7889);
+  EXPECT_EQ(network_header->m_data.size(), 4);
 
-  EXPECT_EQ(header->m_data.size(), 4);
+  const host_order_echo_message host_header = ntoh(network_header->m_message);
+
+  EXPECT_EQ(host_header->m_type, 0x15);
+  EXPECT_EQ(host_header->m_code, 0x23);
+  EXPECT_EQ(host_header->m_checksum, 0x3445);
+  EXPECT_EQ(host_header->m_identifier, 0x5667);
+  EXPECT_EQ(host_header->m_seq_number, 0x7889);
 }
 
 TEST_F(IcmpTest, EchoReply_Endianess) {
@@ -76,16 +78,18 @@ TEST_F(IcmpTest, EchoReply_Endianess) {
       };
   // clang-format on
 
-  const auto header = read_echo_reply_message(binary_header);
-  ASSERT_TRUE(header.has_value());
+  const auto network_header = read_echo_reply_message(binary_header);
+  ASSERT_TRUE(network_header.has_value());
 
-  EXPECT_EQ(header->m_message.m_type, 0x15);
-  EXPECT_EQ(header->m_message.m_code, 0x23);
-  EXPECT_EQ(header->m_message.m_checksum, 0x3445);
-  EXPECT_EQ(header->m_message.m_identifier, 0x5667);
-  EXPECT_EQ(header->m_message.m_seq_number, 0x7889);
+  EXPECT_EQ(network_header->m_data.size(), 4);
 
-  EXPECT_EQ(header->m_data.size(), 4);
+  const host_order_echo_message host_header = ntoh(network_header->m_message);
+
+  EXPECT_EQ(host_header->m_type, 0x15);
+  EXPECT_EQ(host_header->m_code, 0x23);
+  EXPECT_EQ(host_header->m_checksum, 0x3445);
+  EXPECT_EQ(host_header->m_identifier, 0x5667);
+  EXPECT_EQ(host_header->m_seq_number, 0x7889);
 }
 
 TEST_F(IcmpTest, ChecksumCalculation) {
@@ -114,10 +118,10 @@ TEST_F(IcmpTest, ChecksumCalculation) {
     const auto bin = hex_str_to_bin(
         "08000bd00001000106cd7d6500000000a528040000000000101112131415161718191a"
         "1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637");
-    auto msg = read_echo_message_no_ntoh(bin);
+    auto msg = read_echo_message(bin);
     ASSERT_TRUE(msg.has_value());
-    const auto checksum = util::ntohs(msg->m_message.m_checksum);
-    msg->m_message.m_checksum = 0;
+    const auto checksum = util::ntohs(msg->m_message->m_checksum);
+    msg->m_message->m_checksum = 0;
     const auto got_checksum = calc_checksum(msg->m_message, msg->m_data);
     EXPECT_EQ(checksum, got_checksum);
   }
@@ -125,10 +129,10 @@ TEST_F(IcmpTest, ChecksumCalculation) {
     const auto bin = hex_str_to_bin(
         "000013d00001000106cd7d6500000000a528040000000000101112131415161718191a"
         "1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637");
-    auto msg = read_echo_message_no_ntoh(bin);
+    auto msg = read_echo_message(bin);
     ASSERT_TRUE(msg.has_value());
-    const auto checksum = util::ntohs(msg->m_message.m_checksum);
-    msg->m_message.m_checksum = 0;
+    const auto checksum = util::ntohs(msg->m_message->m_checksum);
+    msg->m_message->m_checksum = 0;
     const auto got_checksum = calc_checksum(msg->m_message, msg->m_data);
     EXPECT_EQ(checksum, got_checksum);
   }
@@ -136,10 +140,10 @@ TEST_F(IcmpTest, ChecksumCalculation) {
     const auto bin = hex_str_to_bin(
         "08008f690001000207cd7d6500000000208e040000000000101112131415161718191a"
         "1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637");
-    auto msg = read_echo_message_no_ntoh(bin);
+    auto msg = read_echo_message(bin);
     ASSERT_TRUE(msg.has_value());
-    const auto checksum = util::ntohs(msg->m_message.m_checksum);
-    msg->m_message.m_checksum = 0;
+    const auto checksum = util::ntohs(msg->m_message->m_checksum);
+    msg->m_message->m_checksum = 0;
     const auto got_checksum = calc_checksum(msg->m_message, msg->m_data);
     EXPECT_EQ(checksum, got_checksum);
   }
@@ -147,10 +151,10 @@ TEST_F(IcmpTest, ChecksumCalculation) {
     const auto bin = hex_str_to_bin(
         "000097690001000207cd7d6500000000208e040000000000101112131415161718191a"
         "1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637");
-    auto msg = read_echo_message_no_ntoh(bin);
+    auto msg = read_echo_message(bin);
     ASSERT_TRUE(msg.has_value());
-    const auto checksum = util::ntohs(msg->m_message.m_checksum);
-    msg->m_message.m_checksum = 0;
+    const auto checksum = util::ntohs(msg->m_message->m_checksum);
+    msg->m_message->m_checksum = 0;
     const auto got_checksum = calc_checksum(msg->m_message, msg->m_data);
     EXPECT_EQ(checksum, got_checksum);
   }

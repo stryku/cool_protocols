@@ -48,4 +48,19 @@ inline constexpr std::uint16_t ntohs(std::uint16_t netshort) {
   }
 }
 
+#pragma pack(1)
+template <typename T, typename Tag> struct strong_type_packed {
+
+  T *operator->() {
+    return &m_value;
+  }
+
+  const T *operator->() const {
+    return &m_value;
+  }
+
+  T m_value{};
+};
+#pragma pack()
+
 } // namespace cool_protocols::util
