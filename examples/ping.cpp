@@ -68,16 +68,20 @@ struct ping_data {
   std::chrono::time_point<std::chrono::system_clock> m_sent_at;
 } __attribute__((packed));
 
-int main(void) {
+int main(int argc, const char *argv[]) {
+
+  if (argc < 2) {
+    fmt::print("Usage: ping address\n");
+    return 1;
+  }
+
   std::array<std::uint8_t, 1024> buffer;
 
   std::uint16_t identifier = 1337;
 
-  std::string_view dest = "8.8.8.8";
+  std::string_view dest = argv[1];
   std::string_view src = "192.168.100.150";
-  // std::string_view dest = "127.0.0.1";
-  // std::string_view src = "127.0.0.1";
-  bool verbose = true;
+  bool verbose = false;
 
   raii_socket sock = create_socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
   raii_socket sock_recv = create_socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
@@ -171,7 +175,7 @@ int main(void) {
       fmt::print("Sending {} bytes\n", payload.size());
     }
 
-    fmt::print("Sending ping {} -> {}", src, dest);
+    fmt::print("Sending ping {} -> {}\n", src, dest);
 
     int sent_bytes = sendto(sock.socket, payload.data(), payload.size(), 0,
                             (struct sockaddr *)&addrDest, sizeof(sockaddr_in));
